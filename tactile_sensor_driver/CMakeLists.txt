@@ -18,7 +18,7 @@ find_package(tactile_sensor_msgs REQUIRED)
 
 include_directories(include)
 
-function(driver target)
+function(custom_executable target)
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target} pcanbasic)
   ament_target_dependencies(${target}
@@ -27,6 +27,8 @@ function(driver target)
   install(TARGETS ${target}
     DESTINATION lib/${PROJECT_NAME})
 endfunction()
+
+custom_executable(driver)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

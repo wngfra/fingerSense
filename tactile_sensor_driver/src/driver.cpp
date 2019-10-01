@@ -8,9 +8,7 @@
 
 #include "PCANBasic.h"
 
-#include "rclcpp/clock.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp/time_source.hpp"
 
 #include "tactile_sensor_msgs/msg/tactile_signal.hpp"
 
@@ -18,7 +16,6 @@
 
 using namespace std::chrono_literals;
 
-rclcpp::Clock::SharedPtr clock;
 
 class Driver : public rclcpp::Node
 {
@@ -29,7 +26,7 @@ public:
         Status = CAN_Initialize(PCAN_DEVICE, PCAN_BAUD_1M, 0, 0, 0);
 
         RCLCPP_INFO(
-            this->get_logger(), "CAN_Initialize(%xh): Status=0x%x\n", PCAN_DEVICE, (int)Status);
+            this->get_logger(), "CAN_Initialize(%xh): Status=0x%x", PCAN_DEVICE, (int)Status);
 
         // Read sensor signals and publish
         std::array<uint, 16> channel_order = {{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
@@ -51,7 +48,7 @@ public:
                 if (Status != PCAN_ERROR_OK)
                 {
                     RCLCPP_INFO(
-                        this->get_logger(), "CAN_Read(%xh) failure 0x%x\n", PCAN_DEVICE, (int)Status);
+                        this->get_logger(), "CAN_Read(%xh) failure 0x%x", PCAN_DEVICE, (int)Status);
                 }
 
                 sid = (int)Message.ID;
@@ -106,14 +103,18 @@ public:
                     count = 5;
                 }
             }
-
             msg_ = std::make_unique<tactile_sensor_msgs::msg::TactileSignal>();
-
-            msg_->stamp = clock->now();
+            msg_->stamp = this->get_clock()->now(); 
             msg_->pressure = pressure;
             msg_->proximity = proximity[1] - proximity[0];
-
             pub_->publish(std::move(msg_));
+
+            RCLCPP_INFO(this->get_logger(), "proximity: %d, pressure: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+                proximity[1] - proximity[0],
+                pressure[0],  pressure[1],  pressure[2],  pressure[3],
+                pressure[4],  pressure[5],  pressure[6],  pressure[7],
+                pressure[8],  pressure[9],  pressure[10], pressure[11],
+                pressure[12], pressure[13], pressure[14], pressure[15]);
         };
 
         timer_ = create_wall_timer(1ms, publish);
@@ -134,10 +135,6 @@ int main(int argc, char* argv[])
 
     rclcpp::init(argc, argv);
     auto node = std::make_shared<Driver>();
-    clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
-    rclcpp::TimeSource ts(node);
-    ts.attachClock(clock);
-
     rclcpp::spin(node);
     rclcpp::shutdown();
     
