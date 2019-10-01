@@ -1,40 +1,35 @@
-#include <array>
+#include <chrono>
 #include <memory>
+#include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
 #include <vector>
 
-#include <PCANBasic.h>
+#include "PCANBasic.h"
 
+#include "rclcpp/clock.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_components/register_node_macro.hpp"
-#include "tactile_sensor_msgs/msg/tactile_signal.hpp"
+#include "rclcpp/time_source.hpp"
 
-#include "rmw_fastrtps_cpp/get_participant.hpp"
-#include "rmw_fastrtps_cpp/get_publisher.hpp"
+#include "tactile_sensor_msgs/msg/tactile_signal.hpp"
 
 #define PCAN_DEVICE PCAN_USBBUS1
 
 using namespace std::chrono_literals;
+
+rclcpp::Clock::SharedPtr clock;
 
 class Driver : public rclcpp::Node
 {
 public:
     Driver() : Node("tactile_sensor_driver")
     {
-        rcl_node_t *rcl_node = get_node_base_interface()->get_rcl_node_handle();
-        rmw_node_t *rmw_node = rcl_node_get_rmw_handle(rcl_node);
-        eprosima::fastrtps::Participant *p = rmw_fastrtps_cpp::get_participant(rmw_node);
-        RCLCPP_INFO(
-            this->get_logger(), "eprosima::fastrtps::Participant * %zu", reinterpret_cast<size_t>(p));
-
-        // Initialize PEAK CAN-USB
         mlockall(MCL_CURRENT | MCL_FUTURE);
         Status = CAN_Initialize(PCAN_DEVICE, PCAN_BAUD_1M, 0, 0, 0);
 
         RCLCPP_INFO(
-            this->get_logger(), "INFO: CAN_Initialize(%xh): Status=0x%x\n", PCAN_DEVICE, (int)Status);
+            this->get_logger(), "CAN_Initialize(%xh): Status=0x%x\n", PCAN_DEVICE, (int)Status);
 
         // Read sensor signals and publish
         std::array<uint, 16> channel_order = {{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
@@ -43,13 +38,16 @@ public:
             size_t count = 0;
             size_t order = 0;
             size_t sid;
-            std::array<uint64_t, 2> proximity;
-            std::array<uint64_t, 16> pressure;
+            std::vector<int> proximity(2, 0);
+            std::vector<int> pressure(16, 0);
+
             while (count < 5)
             {
                 while ((Status = CAN_Read(PCAN_DEVICE, &Message, NULL)) == PCAN_ERROR_QRCVEMPTY)
+                {
                     if (usleep(100))
                         break;
+                }
                 if (Status != PCAN_ERROR_OK)
                 {
                     RCLCPP_INFO(
@@ -62,8 +60,8 @@ public:
                 {
                     for (int i = 0; i < 4; ++i)
                     {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
                         order += 1;
                     }
                     count = 1;
@@ -72,8 +70,8 @@ public:
                 {
                     for (int i = 0; i < 4; ++i)
                     {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
                         order += 1;
                     }
                     count = 2;
@@ -82,8 +80,8 @@ public:
                 {
                     for (int i = 0; i < 4; ++i)
                     {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
                         order += 1;
                     }
                     count = 3;
@@ -92,8 +90,8 @@ public:
                 {
                     for (int i = 0; i < 4; ++i)
                     {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + Message.DATA[2 * i];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
+                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
                         order += 1;
                     }
                     count = 4;
@@ -102,31 +100,24 @@ public:
                 {
                     for (int i = 0; i < 2; ++i)
                     {
-                        proximity[i] = (proximity[i] << 8) + Message.DATA[2 * i + 1];
-                        proximity[i] = (proximity[i] << 8) + Message.DATA[2 * i];
+                        proximity[i] = (proximity[i] << 8) + (int)Message.DATA[2 * i + 1];
+                        proximity[i] = (proximity[i] << 8) + (int)Message.DATA[2 * i];
                     }
                     count = 5;
                 }
             }
 
             msg_ = std::make_unique<tactile_sensor_msgs::msg::TactileSignal>();
-            std::vector<uint64_t> tmp;
-            for (int i = 0; i < 16; ++i)
-                tmp.push_back(pressure[i]);
-            msg_->pressure = tmp;
+
+            msg_->stamp = clock->now();
+            msg_->pressure = pressure;
             msg_->proximity = proximity[1] - proximity[0];
 
             pub_->publish(std::move(msg_));
         };
 
-        timer_ = create_wall_timer(100ms, publish);
+        timer_ = create_wall_timer(1ms, publish);
         pub_ = create_publisher<tactile_sensor_msgs::msg::TactileSignal>("tactile_signal_publisher", 10);
-
-        rcl_publisher_t *rcl_pub = pub_->get_publisher_handle();
-        rmw_publisher_t *rmw_pub = rcl_publisher_get_rmw_handle(rcl_pub);
-        eprosima::fastrtps::Publisher *pub = rmw_fastrtps_cpp::get_publisher(rmw_pub);
-        RCLCPP_INFO(
-            this->get_logger(), "eprosima::fastrtps::Publisher * %zu", reinterpret_cast<size_t>(pub));
     }
 
 private:
@@ -143,6 +134,10 @@ int main(int argc, char* argv[])
 
     rclcpp::init(argc, argv);
     auto node = std::make_shared<Driver>();
+    clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+    rclcpp::TimeSource ts(node);
+    ts.attachClock(clock);
+
     rclcpp::spin(node);
     rclcpp::shutdown();
     
