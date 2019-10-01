@@ -14,22 +14,15 @@ node = ros2node("listener");
 pause(1)
 sub = ros2subscriber(node, "/tactile_signal");
 
-global M rid
-M = zeros(100, 16);
-rid = 0;
+%% Realtime processing
+global matrixFIFO
+matrixFIFO = zeros(100, 16);
+sub.NewMessageFcn = @(msg) (holdFIFO(msg.pressure));
 
-sub.NewMessageFcn = @(msg) (holdStack(msg.pressure));
-
-%% Test signals
-custom_msg = ros2message("tactile_sensor_msgs/TactileSignal");
-
-function [] = holdStack(new_row)
-    global M rid
-    if rid == length(M)
-        rid = 1;
-        plot(M)
-    else
-        rid = rid + 1;
-    end
-    M(rid, :) = new_row;
+%% A callback function for the ros2 subscriber to maintain a FIFO matrix
+% Append the new sample to the end
+function [] = holdFIFO(new_entry)
+    global matrixFIFO
+    matrixFIFO(1:end-1, :) = matrixFIFO(2:end, :);
+    matrixFIFO(end, :) = new_entry;
 end
