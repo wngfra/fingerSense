@@ -118,7 +118,7 @@ public:
         };
 
         timer_ = create_wall_timer(1ms, publish);
-        pub_ = create_publisher<tactile_sensor_msgs::msg::TactileSignal>("tactile_signal_publisher", 10);
+        pub_ = create_publisher<tactile_sensor_msgs::msg::TactileSignal>("tactile_signal", 10);
     }
 
 private:

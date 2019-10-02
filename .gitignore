@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# ROS2
+**/custom_interfaces
+**/build
+**/install
+**/log
+
+# vscode
+**/.vscode
