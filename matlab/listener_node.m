@@ -1,6 +1,10 @@
 clear all
 close all
 
+%% Parameters
+signalSequenceLength = 100; % Length of signal sequence stored
+numOfChannels = 16;
+
 %% Generate custom message types
 if ~exist("custom_interfaces", 'dir')
     mkdir custom_interfaces/tactile_sensor_msgs
@@ -16,7 +20,7 @@ sub = ros2subscriber(node, "/tactile_signal");
 
 %% Realtime processing
 global matrixFIFO
-matrixFIFO = zeros(100, 16);
+matrixFIFO = zeros(signalSequenceLength, numOfChannels);
 sub.NewMessageFcn = @(msg) (holdFIFO(msg.pressure));
 
 %% A callback function for the ros2 subscriber to maintain a FIFO matrix
