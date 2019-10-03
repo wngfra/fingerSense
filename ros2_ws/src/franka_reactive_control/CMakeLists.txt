@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
-project(tactile_sensor_driver)
+project(franka_reactive_control)
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -7,27 +9,29 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -O3)
 endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tactile_sensor_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Franka 0.7.1 REQUIRED)
 
 include_directories(include)
 
-function(custom_executable target)
+set(APPS
+  slide_on_surface
+)
+
+foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
-  target_link_libraries(${target} pcanbasic)
+  target_link_libraries(${target} Eigen3::Eigen3 Franka::Franka)
   ament_target_dependencies(${target}
-    "rclcpp"
-    "tactile_sensor_msgs")
+    "rclcpp")
   install(TARGETS ${target}
     DESTINATION lib/${PROJECT_NAME})
-endfunction()
-
-custom_executable(driver)
+endforeach()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
