@@ -1,16 +1,14 @@
+#include <array>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
-#include <vector>
 
-#include "PCANBasic.h"
-
-#include "rclcpp/rclcpp.hpp"
-
-#include "tactile_sensor_msgs/msg/tactile_signal.hpp"
+#include <PCANBasic.h>
+#include <rclcpp/rclcpp.hpp>
+#include <franka_msgs/msg/tactile_signal.hpp>
 
 #define PCAN_DEVICE PCAN_USBBUS1
 
@@ -35,8 +33,8 @@ public:
             size_t count = 0;
             size_t order = 0;
             size_t sid;
-            std::vector<int> proximity(2, 0);
-            std::vector<int> pressure(16, 0);
+            std::array<int, 2> proximity{ {0, 0} };
+            std::array<int, 16> pressure{ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
 
             while (count < 5)
             {
@@ -103,7 +101,7 @@ public:
                     count = 5;
                 }
             }
-            msg_ = std::make_unique<tactile_sensor_msgs::msg::TactileSignal>();
+            msg_ = std::make_unique<franka_msgs::msg::TactileSignal>();
             msg_->stamp = this->get_clock()->now(); 
             msg_->pressure = pressure;
             msg_->proximity = proximity[1] - proximity[0];
@@ -117,15 +115,15 @@ public:
                 pressure[12], pressure[13], pressure[14], pressure[15]);
         };
 
-        timer_ = create_wall_timer(1ms, publish);
-        pub_ = create_publisher<tactile_sensor_msgs::msg::TactileSignal>("tactile_signal", 10);
+        timer_ = create_wall_timer(10ms, publish);
+        pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signal", 10);
     }
 
 private:
     TPCANMsg Message;
     TPCANStatus Status;
-    std::unique_ptr<tactile_sensor_msgs::msg::TactileSignal> msg_;
-    rclcpp::Publisher<tactile_sensor_msgs::msg::TactileSignal>::SharedPtr pub_;
+    std::unique_ptr<franka_msgs::msg::TactileSignal> msg_;
+    rclcpp::Publisher<franka_msgs::msg::TactileSignal>::SharedPtr pub_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

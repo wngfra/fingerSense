@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(tactile_sensor_driver)
+project(franka_msgs)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -12,22 +12,15 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(tactile_sensor_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
 
-include_directories(include)
-
-function(custom_executable target)
-  add_executable(${target} src/${target}.cpp)
-  target_link_libraries(${target} pcanbasic)
-  ament_target_dependencies(${target}
-    "rclcpp"
-    "tactile_sensor_msgs")
-  install(TARGETS ${target}
-    DESTINATION lib/${PROJECT_NAME})
-endfunction()
-
-custom_executable(driver)
+rosidl_generate_interfaces(${PROJECT_NAME}
+    "msg/FrankaState.msg"
+    "msg/TactileSignal.msg"
+    DEPENDENCIES builtin_interfaces std_msgs
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
