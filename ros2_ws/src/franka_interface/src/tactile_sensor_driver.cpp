@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 class Driver : public rclcpp::Node
 {
 public:
-    Driver() : Node("tactile_sensor_driver")
+    Driver(const std::string & node_name) : Node(node_name)
     {
         mlockall(MCL_CURRENT | MCL_FUTURE);
         Status = CAN_Initialize(PCAN_DEVICE, PCAN_BAUD_1M, 0, 0, 0);
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<Driver>();
+    auto node = std::make_shared<Driver>("tactile_sensor_driver");
     rclcpp::spin(node);
     rclcpp::shutdown();
     
