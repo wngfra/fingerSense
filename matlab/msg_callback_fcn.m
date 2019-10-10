@@ -10,6 +10,8 @@ function [processedData] = msg_callback_fcn(msg, shape)
     
     %% TODO process
     Y = abs(fft(matrixFIFO / shape(1)));
+    Y(Y < 2) = 0;
     processedData = Y;
     plot(Y(2:end/2, :))
+    plot(matrixFIFO)
 end

@@ -20,7 +20,7 @@ pause(1)
 
 global processedData
 processedData = zeros(shape);
-sub_tactile = ros2subscriber(node, "/tactile_signal", @(msg) callback_helper(msg, shape));
+sub_tactile = ros2subscriber(node, "/tactile_signals", @(msg) callback_helper(msg, shape));
 sub_robot = ros2subscriber(node, "/robot_states");
 
 function callback_helper(msg, shape)

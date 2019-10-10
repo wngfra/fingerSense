@@ -1,10 +1,10 @@
-#include <array>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include <PCANBasic.h>
 #include <rclcpp/rclcpp.hpp>
@@ -33,8 +33,8 @@ public:
             size_t count = 0;
             size_t order = 0;
             size_t sid;
-            std::array<int, 2> proximity{ {0, 0} };
-            std::array<int, 16> pressure{ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+            std::vector<int32_t> proximity(2);
+            std::vector<int32_t> pressure(16);
 
             while (count < 5)
             {
@@ -107,7 +107,7 @@ public:
             msg_->proximity = proximity[1] - proximity[0];
             pub_->publish(std::move(msg_));
 
-            RCLCPP_INFO(this->get_logger(), "proximity: %d, pressure: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+            RCLCPP_INFO(this->get_logger(), "proximity: %zu, pressure: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
                 proximity[1] - proximity[0],
                 pressure[0],  pressure[1],  pressure[2],  pressure[3],
                 pressure[4],  pressure[5],  pressure[6],  pressure[7],
@@ -116,7 +116,7 @@ public:
         };
 
         timer_ = create_wall_timer(10ms, publish);
-        pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signal", 10);
+        pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signals", 10);
     }
 
 private:
