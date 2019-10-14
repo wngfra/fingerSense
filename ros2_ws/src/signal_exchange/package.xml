@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>franka_interface</name>
-  <version>0.1.0</version>
-  <description>Franka Panda control interface and sensor drivers</description>
-  <maintainer email="siao.wang@edu.unige.it">Alexander Wang</maintainer>
+  <name>signal_exchange</name>
+  <version>0.2.0</version>
+  <description>Franka Panda robot state publisher and sensor drivers</description>
+  <maintainer email="wngfra@gmail.com">alexander</maintainer>
   <license>Apache License 2</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

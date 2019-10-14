@@ -23,6 +23,8 @@ int main(int argc, char *argv[])
         std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
         return -1;
     }
+
+    // Prepare robot
     franka::Robot robot(argv[1]);
     franka::RobotState robot_state;
 
@@ -41,6 +43,7 @@ int main(int argc, char *argv[])
 
     while (rclcpp::ok())
     {
+        // Read robot states
         robot_state = robot.readOnce();
         msg.header.stamp = clock->now();
         msg.o_t_ee = robot_state.O_T_EE;

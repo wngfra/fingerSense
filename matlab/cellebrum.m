@@ -18,12 +18,6 @@ end
 node = ros2node("signal_processor");
 pause(1)
 
-global processedData
-processedData = zeros(shape);
-sub_tactile = ros2subscriber(node, "/tactile_signals", @(msg) callback_helper(msg, shape));
+pub = ros2publisher(node, "/franka_commands", "franka_msgs/FrankaCommand");
+sub_tactile = ros2subscriber(node, "/tactile_signals", @(msg) msg_callback(msg, shape, pub));
 sub_robot = ros2subscriber(node, "/robot_states");
-
-function callback_helper(msg, shape)
-    global processedData
-    processedData = msg_callback_fcn(msg, shape);
-end

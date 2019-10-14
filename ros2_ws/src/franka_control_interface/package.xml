@@ -1,15 +1,19 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>franka_reactive_control</name>
-  <version>0.1.0</version>
-  <description>Sensor based reactive control package for Emika Franka Panda robotic arm</description>
+  <name>franka_control_interface</name>
+  <version>0.1.1</version>
+  <description>Sensor based control interface for Emika Franka Panda robotic arm</description>
   <maintainer email="wngfra@gmail.com">alexander</maintainer>
   <license>Apache License 2</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+
+  <build_depend>franka_msgs</build_depend>
+
+  <exec_depend>franka_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

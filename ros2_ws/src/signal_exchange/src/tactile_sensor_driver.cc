@@ -8,7 +8,8 @@
 
 #include <PCANBasic.h>
 #include <rclcpp/rclcpp.hpp>
-#include <franka_msgs/msg/tactile_signal.hpp>
+
+#include "franka_msgs/msg/tactile_signal.hpp"
 
 #define PCAN_DEVICE PCAN_USBBUS1
 
@@ -26,7 +27,7 @@ public:
         RCLCPP_INFO(
             this->get_logger(), "CAN_Initialize(%xh): Status=0x%x", PCAN_DEVICE, (int)Status);
 
-        // Read sensor signals and publish
+        // Correct remapping order of the signals' id and taxiles' id
         std::array<uint, 16> channel_order = {{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
 
         auto publish = [this, channel_order]() -> void {
@@ -36,6 +37,7 @@ public:
             std::vector<int32_t> proximity(2);
             std::vector<int32_t> pressure(16);
 
+            // Read sensor signals in bytes and convert to 16 channels of 16bit integers
             while (count < 5)
             {
                 while ((Status = CAN_Read(PCAN_DEVICE, &Message, NULL)) == PCAN_ERROR_QRCVEMPTY)
@@ -101,18 +103,22 @@ public:
                     count = 5;
                 }
             }
+
+            // Publish to ros2 topic
             msg_ = std::make_unique<franka_msgs::msg::TactileSignal>();
-            msg_->stamp = this->get_clock()->now(); 
+            msg_->header.frame_id = "base";
+            msg_->header.stamp = this->get_clock()->now(); 
             msg_->pressure = pressure;
             msg_->proximity = proximity[1] - proximity[0];
             pub_->publish(std::move(msg_));
 
+            /*/ Print sensor response on the screen
             RCLCPP_INFO(this->get_logger(), "proximity: %zu, pressure: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
                 proximity[1] - proximity[0],
                 pressure[0],  pressure[1],  pressure[2],  pressure[3],
                 pressure[4],  pressure[5],  pressure[6],  pressure[7],
                 pressure[8],  pressure[9],  pressure[10], pressure[11],
-                pressure[12], pressure[13], pressure[14], pressure[15]);
+                pressure[12], pressure[13], pressure[14], pressure[15]);*/
         };
 
         timer_ = create_wall_timer(10ms, publish);
