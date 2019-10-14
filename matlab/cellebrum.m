@@ -20,4 +20,4 @@ pause(1)
 
 pub = ros2publisher(node, "/franka_commands", "franka_msgs/FrankaCommand");
 sub_tactile = ros2subscriber(node, "/tactile_signals", @(msg) msg_callback(msg, shape, pub));
-sub_robot = ros2subscriber(node, "/robot_states");
+% sub_robot = ros2subscriber(node, "/robot_states");

@@ -18,14 +18,15 @@ find_package(franka_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.7.1 REQUIRED)
+find_package(Threads REQUIRED)
 
 include_directories(include)
 
-add_library(control_common SHARED
+add_library(control_common STATIC
   src/control_common.cc)
 target_link_libraries(control_common PUBLIC
-  Franka::Franka 
-  Eigen3::Eigen3)
+  Eigen3::Eigen3
+  Franka::Franka)
 
 set(APPS
   franka_controller
@@ -34,7 +35,9 @@ set(APPS
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cc)
   target_link_libraries(${target}     
-    Franka::Franka)
+    control_common  
+    Franka::Franka
+    Threads::Threads)
   ament_target_dependencies(${target}
     "franka_msgs"
     "rclcpp")

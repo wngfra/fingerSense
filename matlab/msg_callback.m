@@ -8,9 +8,7 @@ function [] = msg_callback(msg, shape, pub)
         matrixFIFO = zeros(shape);
     end
     if isempty(command)
-        command = zeros(1, 6);
-    else
-        command = command + randn(1, 6) * 0.1;
+        command = [0.1, 0, 0, 0, 0, 0];
     end
     
     matrixFIFO(1:end-1, :) = matrixFIFO(2:end, :);
