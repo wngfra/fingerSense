@@ -1,6 +1,11 @@
 clear all
 close all
 
+%% Parameters
+
+numOfChannels = 16;
+shape = [memoryCapacity, numOfChannels];
+
 %% Generate custom message types
 if ~exist("custom_interfaces", 'dir')
     mkdir custom_interfaces/franka_msgs
@@ -17,6 +22,7 @@ pub = ros2publisher(node, "/franka_commands", "franka_msgs/FrankaCommand");
 sub_tactile = ros2subscriber(node, "/tactile_signals", @(msg) msg_callback(msg, pub));
 
 for i=1:1000
-    pause(0.1)
+    
+    pause(1)
 end
 % sub_robot = ros2subscriber(node, "/robot_states");

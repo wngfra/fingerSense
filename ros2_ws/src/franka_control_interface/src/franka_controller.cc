@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 
         while (!franka_command.is_terminated() && rclcpp::ok())
         {
+            // All zero command keeps robot still
             if (!franka_command.is_zero())
             {
                 double time = 0.0;
