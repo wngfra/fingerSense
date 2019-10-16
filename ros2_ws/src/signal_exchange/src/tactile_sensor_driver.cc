@@ -28,7 +28,7 @@ public:
             this->get_logger(), "CAN_Initialize(%xh): Status=0x%x", PCAN_DEVICE, (int)Status);
 
         // Correct remapping order of the signals' id and taxiles' id
-        std::array<uint, 16> channel_order = {{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
+        std::array<uint, 16> channel_order{ {11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1} };
 
         auto publish = [this, channel_order]() -> void {
             size_t count = 0;
