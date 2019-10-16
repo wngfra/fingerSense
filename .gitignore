@@ -40,3 +40,6 @@
 
 # vscode
 **/.vscode
+
+# MATLAB
+*.m~
