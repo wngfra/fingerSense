@@ -10,8 +10,6 @@ function [] = msg_callback(msg, pub)
     matrixFIFO(1:end-1, :) = matrixFIFO(2:end, :);
     matrixFIFO(end, :) = msg.pressure;
     
-    plot(matrixFIFO);
-    
     %% TODO process
     if mean(mean(matrixFIFO)) >  5000
         newMsg = ros2message(pub);

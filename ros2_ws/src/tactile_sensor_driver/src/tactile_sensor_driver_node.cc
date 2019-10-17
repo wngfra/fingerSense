@@ -112,16 +112,16 @@ public:
             msg_->proximity = proximity[1] - proximity[0];
             pub_->publish(std::move(msg_));
 
-            /*/ Print sensor response on the screen
+            // Print sensor response on the screen
             RCLCPP_INFO(this->get_logger(), "proximity: %zu, pressure: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
                 proximity[1] - proximity[0],
                 pressure[0],  pressure[1],  pressure[2],  pressure[3],
                 pressure[4],  pressure[5],  pressure[6],  pressure[7],
                 pressure[8],  pressure[9],  pressure[10], pressure[11],
-                pressure[12], pressure[13], pressure[14], pressure[15]);*/
+                pressure[12], pressure[13], pressure[14], pressure[15]);
         };
 
-        timer_ = create_wall_timer(10ms, publish);
+        timer_ = create_wall_timer(30ms, publish);
         pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signals", 10);
     }
 
@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<Driver>("tactile_sensor_driver");
+    auto node = std::make_shared<Driver>("tactile_sensor_driver_node");
     rclcpp::spin(node);
     rclcpp::shutdown();
     

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(signal_exchange)
+project(tactile_sensor_driver)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -16,18 +16,16 @@ set(CMAKE_BUILD_TYPE Release)
 find_package(ament_cmake REQUIRED)
 find_package(franka_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(Franka 0.7.1 REQUIRED)
 
 # include_directories(include)
 
 set(APPS
-  robot_state_publisher
-  tactile_sensor_driver
+  tactile_sensor_driver_node
 )
 
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cc)
-  target_link_libraries(${target} pcanbasic Franka::Franka)
+  target_link_libraries(${target} pcanbasic)
   ament_target_dependencies(${target}
     "franka_msgs"
     "rclcpp")
@@ -41,7 +39,6 @@ if(BUILD_TESTING)
 endif()
 
 install(DIRECTORY
-  launch
   DESTINATION share/${PROJECT_NAME}  
 )
 

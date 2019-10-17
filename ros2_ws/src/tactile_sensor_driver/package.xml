@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>signal_exchange</name>
+  <name>tactile_sensor_driver</name>
   <version>0.2.0</version>
-  <description>Franka Panda robot state publisher and sensor drivers</description>
+  <description>Tactile sensor driver</description>
   <maintainer email="wngfra@gmail.com">alexander</maintainer>
   <license>Apache License 2</license>
 
