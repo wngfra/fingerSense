@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(franka_control_interface)
+project(cognitive_control)
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
@@ -31,7 +31,7 @@ target_link_libraries(control_common PUBLIC
   Franka::Franka)
 
 set(APPS
-  franka_controller
+  franka_control_interface
 )
 
 foreach(target ${APPS})
