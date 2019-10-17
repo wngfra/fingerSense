@@ -23,5 +23,5 @@ def generate_launch_description():
         launch_ros.actions.Node(
             package='franka_control', node_executable='tactile_sensor_driver', output='screen'),
         launch_ros.actions.Node(
-            package='franka_control', node_executable='control_interface', output='screen'),
+            package='franka_control', node_executable='control_interface', arguments=['100.120.20.60'], output='screen'),
     ])

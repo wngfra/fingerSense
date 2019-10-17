@@ -38,21 +38,17 @@ private:
 
 int main(int argc, char **argv)
 {
-    std::string robot_ip;
-    if (argc < 2)
+    if (argc != 2)
     {
-        robot_ip = "100.120.20.60";
-    }
-    else
-    {
-        robot_ip = argv[1];
+        std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
+        return -1;
     }
 
     // Initialize rclcpp
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
     rclcpp::init(argc, argv);
     // Connect to robot
-    franka::Robot robot(robot_ip);
+    franka::Robot robot(argv[1]);
     setDefaultBehavior(robot);
     // Prepare Franka command
     FrankaCommand franka_command;
