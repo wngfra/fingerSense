@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
-project(tactile_sensor_driver)
+project(franka_control)
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -16,16 +18,31 @@ set(CMAKE_BUILD_TYPE Release)
 find_package(ament_cmake REQUIRED)
 find_package(franka_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Franka 0.7.1 REQUIRED)
+find_package(Threads REQUIRED)
 
-# include_directories(include)
+include_directories(include)
+
+add_library(control_common STATIC
+  src/control_common.cc)
+target_link_libraries(control_common PUBLIC
+  Eigen3::Eigen3
+  Franka::Franka)
 
 set(APPS
-  tactile_sensor_driver_node
+  control_interface
+  tactile_sensor_driver
 )
 
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cc)
-  target_link_libraries(${target} pcanbasic)
+  target_link_libraries(${target}     
+    control_common 
+    pcanbasic
+    Franka::Franka
+    Threads::Threads)
   ament_target_dependencies(${target}
     "franka_msgs"
     "rclcpp")
@@ -39,7 +56,8 @@ if(BUILD_TESTING)
 endif()
 
 install(DIRECTORY
-  DESTINATION share/${PROJECT_NAME}  
+    launch
+    DESTINATION share/${PROJECT_NAME}/
 )
 
 ament_package()
