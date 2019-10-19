@@ -1,10 +1,10 @@
+#include <array>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
-#include <vector>
 
 #include <PCANBasic.h>
 #include <rclcpp/rclcpp.hpp>
@@ -34,8 +34,8 @@ public:
             size_t count = 0;
             size_t order = 0;
             size_t sid;
-            std::vector<int32_t> proximity(2);
-            std::vector<int32_t> pressure(16);
+            std::array<int32_t, 2> proximity{};
+            std::array<int32_t, 16> pressure{};
 
             // Read sensor signals in bytes and convert to 16 channels of 16bit integers
             while (count < 5)

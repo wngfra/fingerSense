@@ -5,7 +5,7 @@ package_name = 'franka_py'
 
 setup(
     name=package_name,
-    version='0.2.1',
+    version='0.1.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -14,10 +14,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    author='Esteve Fernandez',
-    author_email='esteve@osrfoundation.org',
-    maintainer='Mikael Arguedas',
-    maintainer_email='mikael@osrfoundation.org',
+    author='alex wang',
+    author_email='wngfra@gmail.com',
+    maintainer='alex wang',
+    maintainer_email='wngfra@gmail.com',
     keywords=['ROS'],
     classifiers=[
         'Intended Audience :: Developers',
@@ -33,7 +33,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'talker = franka_py.topics.talker:main',
             'talker_qos = franka_py.topics.talker_qos:main'
         ],
     },
