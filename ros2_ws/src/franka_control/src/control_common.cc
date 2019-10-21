@@ -11,7 +11,7 @@
 #include <franka/exception.h>
 #include <franka/robot.h>
 
-#define RESPONSE_TIME 1
+#define RESPONSE_TIME 1.0
 
 franka::CartesianVelocities generateMotion(const std::array<double, 6> &command, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
 {

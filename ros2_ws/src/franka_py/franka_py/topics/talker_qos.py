@@ -1,6 +1,8 @@
 import argparse
 import sys
 
+import numpy as np
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -17,19 +19,30 @@ class TalkerQos(Node):
         super().__init__('talker_qos')
         self.i = 0
         if qos_profile.reliability is QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE:
-            self.get_logger().info('Reliable talker')
+            self.get_logger().info('Reliable communicator')
         else:
-            self.get_logger().info('Best effort talker')
-        self.pub = self.create_publisher(String, 'chatter', qos_profile)
+            self.get_logger().info('Best effort communicator')
+        self.pub = self.create_publisher(FrankaCommand, 'franka_commands', qos_profile)
+        self.sub = self.create_subscription(
+            TactileSignal, 'tactile_signals', self.tactile_callback, qos_profile)
 
         timer_period = 1.0
         self.tmr = self.create_timer(timer_period, self.timer_callback)
 
+    def tactile_callback(self, msg):
+        pressure_str = [str(p) for p in msg.pressure]
+        self.get_logger().info('Received tactile signals: [%s]' % ', '.join(pressure_str))
+
     def timer_callback(self):
-        msg = String()
-        msg.data = 'Hello World: {0}'.format(self.i)
+        msg = FrankaCommand()
+        msg.header.frame_id = 'base'
+        print(msg.header)
+        time = self.get_clock().now()
+        # testing
+        msg.command = np.ones(6) * 0.01
+        commands = ', '.join([str(c) for c in msg.command])
         self.i += 1
-        self.get_logger().info('Publishing: "{0}"'.format(msg.data))
+        self.get_logger().info(commands)
         self.pub.publish(msg)
 
 
@@ -39,9 +52,6 @@ def main(argv=sys.argv[1:]):
         '--reliable', dest='reliable', action='store_true',
         help='set qos profile to reliable')
     parser.set_defaults(reliable=False)
-    parser.add_argument(
-        '-n', '--number_of_cycles', type=int, default=20,
-        help='number of sending attempts')
     parser.add_argument(
         'argv', nargs=argparse.REMAINDER,
         help='Pass arbitrary arguments to the executable')
@@ -57,10 +67,8 @@ def main(argv=sys.argv[1:]):
 
     node = TalkerQos(custom_qos_profile)
 
-    cycle_count = 0
-    while rclpy.ok() and cycle_count < args.number_of_cycles:
+    while rclpy.ok():
         rclpy.spin_once(node)
-        cycle_count += 1
 
     node.destroy_node()
     rclpy.shutdown()
