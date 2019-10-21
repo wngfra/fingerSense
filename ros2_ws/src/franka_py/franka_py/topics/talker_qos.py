@@ -39,7 +39,7 @@ class TalkerQos(Node):
         print(msg.header)
         time = self.get_clock().now()
         # testing
-        msg.command = np.ones(6) * 0.01
+        msg.command = np.ones(6) * 0.1 if self.i < 10 else np.zeros(6)
         commands = ', '.join([str(c) for c in msg.command])
         self.i += 1
         self.get_logger().info(commands)

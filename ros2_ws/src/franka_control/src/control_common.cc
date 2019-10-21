@@ -1,5 +1,3 @@
-#include "franka_control_interface/control_common.h"
-
 #include <algorithm>
 #include <array>
 #include <math.h>
@@ -11,9 +9,11 @@
 #include <franka/exception.h>
 #include <franka/robot.h>
 
-#define RESPONSE_TIME 1.0
+#include "franka_control_interface/control_common.h"
 
-franka::CartesianVelocities generateMotion(const std::array<double, 6> &command, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
+#define RESPONSE_TIME 0.03
+
+franka::CartesianVelocities generateMotion(const std::array<double, 6> &command, franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
 {
     time += period.toSec();
 
@@ -29,8 +29,7 @@ franka::CartesianVelocities generateMotion(const std::array<double, 6> &command,
 
     if (time >= RESPONSE_TIME)
     {
-        franka::CartesianVelocities velocity_desired(v0_array);
-        return franka::MotionFinished(velocity_desired);
+        return franka::MotionFinished(franka::CartesianVelocities(v0_array));
     }
     else
     {
@@ -38,6 +37,7 @@ franka::CartesianVelocities generateMotion(const std::array<double, 6> &command,
         {
             double v1 = v0_array[i];
             double v2 = command[i];
+            
             v0_array[i] = (v2 - v1) / 2 * std::sin(M_PI / (RESPONSE_TIME)*time - M_PI_2) + (v1 + v2) / 2;
         }
 

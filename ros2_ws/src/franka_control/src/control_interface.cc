@@ -62,29 +62,21 @@ int main(int argc, char **argv)
         franka::Model model = robot.loadModel();
         std::array<double, 6> command{};
 
-        while (!franka_command.is_terminated() && rclcpp::ok())
+        while (rclcpp::ok())
         {
-            // All zero command keeps robot still
-            if (!franka_command.is_zero())
+            double time = 0.0;
+            command = franka_command.fetch();
+            try
             {
-                double time = 0.0;
-                command = franka_command.fetch();
-                try
-                {
-                    robot.control([&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
-                        return generateMotion(command, model, period, robot_state, time);
-                    });
-                }
-                catch (const franka::Exception &e)
-                {
-                    RCLCPP_WARN(node->get_logger(), e.what());
-                    RCLCPP_INFO(node->get_logger(), "Running error recovery...");
-                    robot.automaticErrorRecovery();
-                }
+                robot.control([&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                    return generateMotion(command, model, period, robot_state, time);
+                });
             }
-            else if (LOGGING)
+            catch (const franka::Exception &e)
             {
-                RCLCPP_INFO(node->get_logger(), "Remain still.");
+                RCLCPP_WARN(node->get_logger(), e.what());
+                RCLCPP_INFO(node->get_logger(), "Running error recovery...");
+                robot.automaticErrorRecovery();
             }
         }
     });
