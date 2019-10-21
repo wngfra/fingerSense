@@ -38,6 +38,9 @@
 **/install
 **/log
 
+# python
+**/__pycache__
+
 # vscode
 **/.vscode
 
