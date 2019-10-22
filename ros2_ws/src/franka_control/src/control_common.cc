@@ -11,12 +11,16 @@
 
 #include "franka_control_interface/control_common.h"
 
-#define RESPONSE_TIME 0.152
+#define RESPONSE_TIME 0.3
 
-franka::CartesianVelocities generateMotion(const std::array<double, 12> &commands, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
+franka::CartesianVelocities generateMotion(const std::array<double, 6> &vc, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time, std::array<double, 6> &vt)
 {
-    std::array<double, 6> vt;
+    if (time >= RESPONSE_TIME)
+    {
+        time = 0.0;
+    }
 
+    // Compute the initial velocity
     if (time == 0.0)
     {
         // Compute current Cartesian velocities
@@ -32,45 +36,38 @@ franka::CartesianVelocities generateMotion(const std::array<double, 12> &command
     }
 
     time += period.toSec();
+
     // Desired velocity
     std::array<double, 6> vd{};
 
+    bool is_finished = false;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        double v1 = vt[i];
+        double v2 = vc[i];
+
+        if (v2 == v1)
+        {
+            vd[i] = v2;
+        }
+        else if (v2 > v1)
+        {
+            vd[i] = v1 + (v2 - v1) * std::sin(0.5 * M_PI * time / RESPONSE_TIME);
+        }
+        else
+        {
+            vd[i] = v2 - (v2 - v1) * std::cos(0.5 * M_PI * time / RESPONSE_TIME);
+        }
+        
+    }
+
     franka::CartesianVelocities output(vd);
 
-    if (time >= RESPONSE_TIME)
-    {
+    if (is_finished)
         return franka::MotionFinished(output);
-    }
     else
-    {
-        double vc, vp;
-        for (int i = 0; i < 6; ++i)
-        {
-            // Current velocity command
-            vc = commands[i];
-            // Last velocity command
-            vp = vt[i];
-            vd[i] = vc * std::sin(M_PI * time / RESPONSE_TIME);
-            /*
-            if (vc > vp)
-            {
-                vd[i] = vp + (vc - vp) * std::sin(0.5 * M_PI * time / RESPONSE_TIME);
-            }
-            else if (vc == vp)
-            {
-                vd[i] = vc;
-            }
-            else if (vc < vp)
-            {
-                vd[i] = vp + (vc - vp) * std::sin(0.5 * M_PI * (time - RESPONSE_TIME) / RESPONSE_TIME);
-            }
-            */
-        }
-
-        output = franka::CartesianVelocities(vd);
-
         return output;
-    }
 }
 
 void setDefaultBehavior(franka::Robot &robot)

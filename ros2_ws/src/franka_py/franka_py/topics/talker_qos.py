@@ -22,7 +22,8 @@ class TalkerQos(Node):
             self.get_logger().info('Reliable communicator')
         else:
             self.get_logger().info('Best effort communicator')
-        self.pub = self.create_publisher(FrankaCommand, 'franka_commands', qos_profile)
+        self.pub = self.create_publisher(
+            FrankaCommand, 'franka_commands', qos_profile)
         self.sub = self.create_subscription(
             TactileSignal, 'tactile_signals', self.tactile_callback, qos_profile)
 
@@ -38,7 +39,8 @@ class TalkerQos(Node):
         msg.header.frame_id = 'base'
         # msg.header.stamp = self.get_clock().now()
         # testing
-        msg.command = [0.02*np.sin(self.i/np.pi), 0.02*np.cos(self.i/np.pi), 0.0, 0.0, 0.0, 0.0]
+        y = np.sin(self.i/1000) * 10
+        msg.command = [0.0, y, 0.0, 0.0, 0.0, 0.0]
         commands = ', '.join([str(c) for c in msg.command])
         self.i += 1
         self.get_logger().info('Sent commands: [%s]' % commands)
@@ -46,7 +48,8 @@ class TalkerQos(Node):
 
 
 def main(argv=sys.argv[1:]):
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--reliable', dest='reliable', action='store_true',
         help='set qos profile to reliable')

@@ -21,12 +21,12 @@ using namespace std::chrono_literals;
 class FrankaCommandListener : public rclcpp::Node
 {
 public:
-    explicit FrankaCommandListener(const std::string &topic_name, FrankaCommand &franka_command) : Node("franka_command_listener")
+    explicit FrankaCommandListener(const std::string &topic_name, std::array<double, 6> &new_commands) : Node("franka_command_listener")
     {
         auto callback = [&](const franka_msgs::msg::FrankaCommand::SharedPtr msg) -> void {
             if (LOGGING)
                 RCLCPP_INFO(this->get_logger(), "Command sent to Franka is (%f, %f, %f, %f, %f, %f)", msg->command[0], msg->command[1], msg->command[2], msg->command[3], msg->command[4], msg->command[5]);
-            franka_command.set_new(msg->command);
+            new_commands = std::move(msg->command);
         };
 
         sub_ = create_subscription<franka_msgs::msg::FrankaCommand>(topic_name, 10, callback);
@@ -50,29 +50,24 @@ int main(int argc, char **argv)
     // Connect to robot
     franka::Robot robot(argv[1]);
     setDefaultBehavior(robot);
-    // Prepare Franka command
-    FrankaCommand franka_command;
 
     // Create FrankaCommand subscriber node
+    std::array<double, 6> commands{};
     auto topic = std::string("franka_commands");
-    auto node = std::make_shared<FrankaCommandListener>(topic, franka_command);
+    auto node = std::make_shared<FrankaCommandListener>(topic, commands);
 
     // Robot controller
     std::thread thread([&]() {
         franka::Model model = robot.loadModel();
 
-        std::array<double, 12> commands;
-
         while (rclcpp::ok())
         {
-            // Wait for new command to come
-            commands = franka_command.fetch();
-
             try
             {
                 double time = 0.0;
+                std::array<double, 6> vt{};
                 robot.control([&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
-                    return generateMotion(commands, model, period, robot_state, time);
+                    return generateMotion(commands, model, period, robot_state, time, vt);
                 });
             }
             catch (const franka::Exception &e)
