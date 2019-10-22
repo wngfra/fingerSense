@@ -123,7 +123,7 @@ public:
             */
         };
 
-        timer_ = create_wall_timer(30ms, publish);
+        timer_ = create_wall_timer(31ms, publish);
         pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signals", 10);
     }
 

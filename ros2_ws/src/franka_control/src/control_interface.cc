@@ -13,7 +13,7 @@
 #include "franka_msgs/msg/franka_command.hpp"
 
 #ifndef LOGGING
-#define LOGGING 0
+#define LOGGING 1
 #endif
 
 using namespace std::chrono_literals;
@@ -25,8 +25,8 @@ public:
     {
         auto callback = [&](const franka_msgs::msg::FrankaCommand::SharedPtr msg) -> void {
             if (LOGGING)
-                RCLCPP_INFO(this->get_logger(), "Command sent to franka is (%f, %f, %f, %f, %f, %f)", msg->command[0], msg->command[1], msg->command[2], msg->command[3], msg->command[4], msg->command[5]);
-            franka_command.set(msg->command);
+                RCLCPP_INFO(this->get_logger(), "Command sent to Franka is (%f, %f, %f, %f, %f, %f)", msg->command[0], msg->command[1], msg->command[2], msg->command[3], msg->command[4], msg->command[5]);
+            franka_command.set_new(msg->command);
         };
 
         sub_ = create_subscription<franka_msgs::msg::FrankaCommand>(topic_name, 10, callback);
@@ -60,16 +60,19 @@ int main(int argc, char **argv)
     // Robot controller
     std::thread thread([&]() {
         franka::Model model = robot.loadModel();
-        std::array<double, 6> command{};
+
+        std::array<double, 12> commands;
 
         while (rclcpp::ok())
         {
-            double time = 0.0;
-            command = franka_command.fetch();
+            // Wait for new command to come
+            commands = franka_command.fetch();
+
             try
             {
+                double time = 0.0;
                 robot.control([&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
-                    return generateMotion(command, model, period, robot_state, time);
+                    return generateMotion(commands, model, period, robot_state, time);
                 });
             }
             catch (const franka::Exception &e)

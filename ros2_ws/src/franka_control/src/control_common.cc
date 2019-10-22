@@ -11,49 +11,66 @@
 
 #include "franka_control_interface/control_common.h"
 
-#define RESPONSE_TIME 0.03
+#define RESPONSE_TIME 0.152
 
-franka::CartesianVelocities generateMotion(const std::array<double, 6> &command, franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
+franka::CartesianVelocities generateMotion(const std::array<double, 12> &commands, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time)
 {
+    std::array<double, 6> vt;
+
+    if (time == 0.0)
+    {
+        // Compute current Cartesian velocities
+        std::array<double, 42> jacobian_array = model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
+        Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+        Eigen::Matrix<double, 6, 1> v0 = jacobian * dq;
+
+        // Convert from Eigen
+        std::array<double, 6> v0_array{};
+        Eigen::VectorXd::Map(&v0_array[0], 6) = v0;
+        vt = v0_array;
+    }
+
     time += period.toSec();
+    // Desired velocity
+    std::array<double, 6> vd{};
 
-    // Compute current Cartesian velocities
-    std::array<double, 42> jacobian_array = model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
-    Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-    Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
-    Eigen::Matrix<double, 6, 1> v0 = jacobian * dq;
-
-    // Convert from Eigen
-    std::array<double, 6> v0_array{};
-    Eigen::VectorXd::Map(&v0_array[0], 6) = v0;
+    franka::CartesianVelocities output(vd);
 
     if (time >= RESPONSE_TIME)
     {
-        return franka::MotionFinished(franka::CartesianVelocities(v0_array));
+        return franka::MotionFinished(output);
     }
     else
     {
+        double vc, vp;
         for (int i = 0; i < 6; ++i)
         {
-            double v1 = v0_array[i];
-            double v2 = command[i];
-            
-            v0_array[i] = (v2 - v1) / 2 * std::sin(M_PI / (RESPONSE_TIME)*time - M_PI_2) + (v1 + v2) / 2;
+            // Current velocity command
+            vc = commands[i];
+            // Last velocity command
+            vp = vt[i];
+            vd[i] = vc * std::sin(M_PI * time / RESPONSE_TIME);
+            /*
+            if (vc > vp)
+            {
+                vd[i] = vp + (vc - vp) * std::sin(0.5 * M_PI * time / RESPONSE_TIME);
+            }
+            else if (vc == vp)
+            {
+                vd[i] = vc;
+            }
+            else if (vc < vp)
+            {
+                vd[i] = vp + (vc - vp) * std::sin(0.5 * M_PI * (time - RESPONSE_TIME) / RESPONSE_TIME);
+            }
+            */
         }
 
-        return franka::CartesianVelocities(v0_array);
-    }
-}
+        output = franka::CartesianVelocities(vd);
 
-template <typename T>
-void print(const std::string &title, const T &as)
-{
-    std::cout << title << " ";
-    for (auto &a : as)
-    {
-        std::cout << a << " ";
+        return output;
     }
-    std::cout << std::endl;
 }
 
 void setDefaultBehavior(franka::Robot &robot)
@@ -65,4 +82,10 @@ void setDefaultBehavior(franka::Robot &robot)
         {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
     robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
     robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
+}
+
+template <typename T>
+int sgn(T val)
+{
+    return (T(0) < val) - (val < T(0));
 }

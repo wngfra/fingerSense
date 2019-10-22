@@ -26,23 +26,22 @@ class TalkerQos(Node):
         self.sub = self.create_subscription(
             TactileSignal, 'tactile_signals', self.tactile_callback, qos_profile)
 
-        timer_period = 1.0
+        timer_period = 0.3
         self.tmr = self.create_timer(timer_period, self.timer_callback)
 
     def tactile_callback(self, msg):
         pressure_str = [str(p) for p in msg.pressure]
-        self.get_logger().info('Received tactile signals: [%s]' % ', '.join(pressure_str))
+        # self.get_logger().info('Received tactile signals: [%s]' % ', '.join(pressure_str))
 
     def timer_callback(self):
         msg = FrankaCommand()
         msg.header.frame_id = 'base'
-        print(msg.header)
-        time = self.get_clock().now()
+        # msg.header.stamp = self.get_clock().now()
         # testing
-        msg.command = np.ones(6) * 0.1 if self.i < 10 else np.zeros(6)
+        msg.command = [0.02*np.sin(self.i/np.pi), 0.02*np.cos(self.i/np.pi), 0.0, 0.0, 0.0, 0.0]
         commands = ', '.join([str(c) for c in msg.command])
         self.i += 1
-        self.get_logger().info(commands)
+        self.get_logger().info('Sent commands: [%s]' % commands)
         self.pub.publish(msg)
 
 
