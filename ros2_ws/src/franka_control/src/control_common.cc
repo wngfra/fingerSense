@@ -11,7 +11,7 @@
 
 #include "franka_control_interface/control_common.h"
 
-#define RESPONSE_TIME 0.3
+#define RESPONSE_TIME 1.0
 
 franka::CartesianVelocities generateMotion(const std::array<double, 6> &vc, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time, std::array<double, 6> &vt)
 {
@@ -79,10 +79,4 @@ void setDefaultBehavior(franka::Robot &robot)
         {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
     robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
     robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
-}
-
-template <typename T>
-int sgn(T val)
-{
-    return (T(0) < val) - (val < T(0));
 }

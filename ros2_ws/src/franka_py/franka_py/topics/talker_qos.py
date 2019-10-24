@@ -1,6 +1,8 @@
 import argparse
 import sys
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 
 import rclpy
@@ -27,19 +29,27 @@ class TalkerQos(Node):
         self.sub = self.create_subscription(
             TactileSignal, 'tactile_signals', self.tactile_callback, qos_profile)
 
-        timer_period = 0.3
+        timer_period = 1
         self.tmr = self.create_timer(timer_period, self.timer_callback)
 
     def tactile_callback(self, msg):
-        pressure_str = [str(p) for p in msg.pressure]
-        # self.get_logger().info('Received tactile signals: [%s]' % ', '.join(pressure_str))
+        vals = msg.pressure
+        normed_vals = vals / np.mean(vals)
+        tiled_vals = np.tile(normed_vals, [len(normed_vals), 1])
+        cov = tiled_vals.transpose() * tiled_vals
+
+        cmap = mpl.cm.get_cmap('plasma')
+        normalize = mpl.colors.Normalize(vmin=0, vmax=1000)
+        colors = [cmap(normalize(value)) for value in vals]
+        plt.imshow(cov, cmap='hot', interpolation='nearest')
+        plt.pause(0.03)
 
     def timer_callback(self):
         msg = FrankaCommand()
         msg.header.frame_id = 'base'
         # msg.header.stamp = self.get_clock().now()
         # testing
-        y = np.sin(self.i/1000) * 10
+        y = float(np.random.randn(1) / 100)
         msg.command = [0.0, y, 0.0, 0.0, 0.0, 0.0]
         commands = ', '.join([str(c) for c in msg.command])
         self.i += 1

@@ -11,6 +11,7 @@
 
 #include "franka_control_interface/control_common.h"
 #include "franka_msgs/msg/franka_command.hpp"
+#include "franka_msgs/msg/franka_state.hpp"
 
 #ifndef LOGGING
 #define LOGGING 1
@@ -34,6 +35,22 @@ public:
 
 private:
     rclcpp::Subscription<franka_msgs::msg::FrankaCommand>::SharedPtr sub_;
+};
+
+class FrankaStatePublisher : public rclcpp::Node
+{
+public:
+    explicit FrankaStatePublisher(const std::string &topic_name) : Node("franka_state_publisher")
+    {
+        auto publish = [&]() {
+            
+        };
+
+        pub_ = create_publisher<franka_msgs::msg::FrankaState>("franka_states", 10);
+    }
+
+private:
+    rclcpp::Publisher<franka_msgs::msg::FrankaState>::SharedPtr pub_;
 };
 
 int main(int argc, char **argv)
