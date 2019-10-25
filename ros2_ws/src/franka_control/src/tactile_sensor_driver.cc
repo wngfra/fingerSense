@@ -15,11 +15,10 @@
 
 using namespace std::chrono_literals;
 
-
 class Driver : public rclcpp::Node
 {
 public:
-    Driver(const std::string & node_name) : Node(node_name)
+    Driver(const std::string &node_name) : Node(node_name)
     {
         mlockall(MCL_CURRENT | MCL_FUTURE);
         Status = CAN_Initialize(PCAN_DEVICE, PCAN_BAUD_1M, 0, 0, 0);
@@ -28,7 +27,7 @@ public:
             this->get_logger(), "CAN_Initialize(%xh): Status=0x%x", PCAN_DEVICE, (int)Status);
 
         // Correct remapping order of the signals' id and taxiles' id
-        std::array<uint, 16> channel_order{ {11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1} };
+        std::array<uint, 16> channel_order{{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
 
         auto publish = [this, channel_order]() -> void {
             size_t count = 0;
@@ -107,20 +106,18 @@ public:
             // Publish to ros2 topic
             msg_ = std::make_unique<franka_msgs::msg::TactileSignal>();
             msg_->header.frame_id = "base";
-            msg_->header.stamp = this->get_clock()->now(); 
+            msg_->header.stamp = this->get_clock()->now();
             msg_->pressure = pressure;
             msg_->proximity = proximity[1] - proximity[0];
             pub_->publish(std::move(msg_));
 
             // Print sensor response on the screen
-            /*
             RCLCPP_INFO(this->get_logger(), "proximity: %zu, pressure: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
                 proximity[1] - proximity[0],
                 pressure[0],  pressure[1],  pressure[2],  pressure[3],
                 pressure[4],  pressure[5],  pressure[6],  pressure[7],
                 pressure[8],  pressure[9],  pressure[10], pressure[11],
                 pressure[12], pressure[13], pressure[14], pressure[15]);
-            */
         };
 
         timer_ = create_wall_timer(31ms, publish);
@@ -135,7 +132,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
@@ -143,6 +140,6 @@ int main(int argc, char* argv[])
     auto node = std::make_shared<Driver>("tactile_sensor_driver_node");
     rclcpp::spin(node);
     rclcpp::shutdown();
-    
+
     return 0;
 }
