@@ -22,7 +22,7 @@ using namespace std::chrono_literals;
 class FrankaCommandListener : public rclcpp::Node
 {
 public:
-    explicit FrankaCommandListener(const std::string &topic_name, std::array<double, 6> &new_commands) : Node("franka_command_listener")
+    explicit FrankaCommandListener(const std::string &topic_name, std::array<double, 6> &new_commands) : Node("franka_control_interface")
     {
         auto callback = [&](const franka_msgs::msg::FrankaCommand::SharedPtr msg) -> void {
             if (LOGGING)
@@ -35,22 +35,6 @@ public:
 
 private:
     rclcpp::Subscription<franka_msgs::msg::FrankaCommand>::SharedPtr sub_;
-};
-
-class FrankaStatePublisher : public rclcpp::Node
-{
-public:
-    explicit FrankaStatePublisher(const std::string &topic_name) : Node("franka_state_publisher")
-    {
-        auto publish = [&]() {
-            
-        };
-
-        pub_ = create_publisher<franka_msgs::msg::FrankaState>("franka_states", 10);
-    }
-
-private:
-    rclcpp::Publisher<franka_msgs::msg::FrankaState>::SharedPtr pub_;
 };
 
 int main(int argc, char **argv)

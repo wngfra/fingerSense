@@ -9,7 +9,7 @@ if ~exist("custom_interfaces", 'dir')
 end
 
 %% Create subscriber node, make sure the publisher is running
-node = ros2node("signal_processor");
+node = ros2node("visualizer");
 pause(1)
 
 h = heatmap(zeros(16,16));
