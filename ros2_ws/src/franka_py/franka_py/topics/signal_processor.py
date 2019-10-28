@@ -16,6 +16,7 @@ class SignalProcessor(Node):
     def __init__(self, qos_profile):
         super().__init__('signal_processor')
         self.i = 0
+        
         if qos_profile.reliability is QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE:
             self.get_logger().info('Reliable communicator')
         else:
@@ -34,7 +35,7 @@ class SignalProcessor(Node):
 
     # Subscriber callback
     def tactile_callback(self, msg):
-        self.data = msg.pressure
+        self.data = msg.data
 
     # Timer callback for publisher
     def timer_callback(self):

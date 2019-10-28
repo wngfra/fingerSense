@@ -11,7 +11,7 @@
 
 #include "franka_msgs/msg/tactile_signal.hpp"
 
-#define PCAN_DEVICE PCAN_USBBUS1
+#define PCAN_DEVICE PCAN_PCIBUS2
 
 using namespace std::chrono_literals;
 
@@ -20,8 +20,10 @@ class Driver : public rclcpp::Node
 public:
     Driver(const std::string &node_name) : Node(node_name)
     {
+        // Lock memory, open CAN port and set filters
         mlockall(MCL_CURRENT | MCL_FUTURE);
         Status = CAN_Initialize(PCAN_DEVICE, PCAN_BAUD_1M, 0, 0, 0);
+        CAN_FilterMessages(PCAN_DEVICE, 0x405, 0x40b, PCAN_MESSAGE_STANDARD);
 
         RCLCPP_INFO(
             this->get_logger(), "CAN_Initialize(%xh): Status=0x%x", PCAN_DEVICE, (int)Status);
@@ -30,14 +32,11 @@ public:
         std::array<uint, 16> channel_order{{11, 15, 14, 12, 9, 13, 8, 10, 6, 7, 4, 5, 2, 0, 3, 1}};
 
         auto publish = [this, channel_order]() -> void {
-            size_t count = 0;
-            size_t order = 0;
-            size_t sid;
-            std::array<int32_t, 2> proximity{};
-            std::array<int32_t, 16> pressure{};
+            size_t tid, ctid;
+            std::array<int32_t, 16> data{};
 
             // Read sensor signals in bytes and convert to 16 channels of 16bit integers
-            while (count < 5)
+            for (int i = 0; i < 4; ++i)
             {
                 while ((Status = CAN_Read(PCAN_DEVICE, &Message, NULL)) == PCAN_ERROR_QRCVEMPTY)
                 {
@@ -48,58 +47,17 @@ public:
                 {
                     RCLCPP_INFO(
                         this->get_logger(), "CAN_Read(%xh) failure 0x%x", PCAN_DEVICE, (int)Status);
+                    break;
                 }
 
-                sid = (int)Message.ID;
-
-                if (sid == 0x405 && count == 0)
+                // Compute the starting tactile id
+                tid = (int)(Message.ID - 0x405) * 2;
+                for (int i = 0; i < 4; ++i)
                 {
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
-                        order += 1;
-                    }
-                    count = 1;
-                }
-                else if (sid == 0x407 && count == 1)
-                {
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
-                        order += 1;
-                    }
-                    count = 2;
-                }
-                else if (sid == 0x409 && count == 2)
-                {
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
-                        order += 1;
-                    }
-                    count = 3;
-                }
-                else if (sid == 0x40b && count == 3)
-                {
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i + 1];
-                        pressure[channel_order[order]] = (pressure[channel_order[order]] << 8) + (int)Message.DATA[2 * i];
-                        order += 1;
-                    }
-                    count = 4;
-                }
-                else if (sid == 0x601 && count == 4)
-                {
-                    for (int i = 0; i < 2; ++i)
-                    {
-                        proximity[i] = (proximity[i] << 8) + (int)Message.DATA[2 * i + 1];
-                        proximity[i] = (proximity[i] << 8) + (int)Message.DATA[2 * i];
-                    }
-                    count = 5;
+                    // Correspondent tactile order
+                    ctid = channel_order[tid + i];
+                    data[ctid] = (data[ctid] << 8) + (int)Message.DATA[2 * i + 1];
+                    data[ctid] = (data[ctid] << 8) + (int)Message.DATA[2 * i];
                 }
             }
 
@@ -107,20 +65,18 @@ public:
             msg_ = std::make_unique<franka_msgs::msg::TactileSignal>();
             msg_->header.frame_id = "base";
             msg_->header.stamp = this->get_clock()->now();
-            msg_->pressure = pressure;
-            msg_->proximity = proximity[1] - proximity[0];
+            msg_->data = data;
             pub_->publish(std::move(msg_));
 
             // Print sensor response on the screen
-            RCLCPP_INFO(this->get_logger(), "proximity: %zu, pressure: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
-                proximity[1] - proximity[0],
-                pressure[0],  pressure[1],  pressure[2],  pressure[3],
-                pressure[4],  pressure[5],  pressure[6],  pressure[7],
-                pressure[8],  pressure[9],  pressure[10], pressure[11],
-                pressure[12], pressure[13], pressure[14], pressure[15]);
+            RCLCPP_INFO(this->get_logger(), "Tactile readings: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
+                        data[0],  data[1],  data[2],  data[3],
+                        data[4],  data[5],  data[6],  data[7],
+                        data[8],  data[9],  data[10], data[11],
+                        data[12], data[13], data[14], data[15]);
         };
 
-        timer_ = create_wall_timer(31ms, publish);
+        timer_ = create_wall_timer(30ms, publish);
         pub_ = create_publisher<franka_msgs::msg::TactileSignal>("tactile_signals", 10);
     }
 
