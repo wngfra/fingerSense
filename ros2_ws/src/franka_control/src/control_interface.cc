@@ -55,7 +55,13 @@ int main(int argc, char **argv)
     // Create FrankaCommand subscriber node
     std::array<double, 6> commands{};
     auto topic = std::string("franka_commands");
-    auto node = std::make_shared<FrankaCommandListener>(topic, commands);
+    auto node_sub = std::make_shared<FrankaCommandListener>(topic, commands);
+
+    // Prepare for robot state publisher
+    auto node_pub = rclcpp::Node::make_shared("robot_state_publisher");
+    auto robot_state_pub = node_pub->create_publisher<franka_msgs::msg::FrankaState>("robot_states", 10);
+    rclcpp::WallRate loop_rate(30);
+    franka_msgs::msg::FrankaState robot_state_msg;
 
     // Robot controller
     std::thread thread([&]() {
@@ -68,19 +74,28 @@ int main(int argc, char **argv)
                 double time = 0.0;
                 std::array<double, 6> vt{};
                 robot.control([&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                    // Publish robot states
+                    robot_state_msg.header.frame_id = "end_effector";
+                    robot_state_msg.header.stamp = node_pub->get_clock()->now();
+                    robot_state_msg.o_t_ee = robot_state.O_T_EE;
+                    robot_state_msg.o_t_ee_c = robot_state.O_ddP_EE_c;
+                    robot_state_msg.o_f_ext_hat_k = robot_state.O_F_ext_hat_K;
+                    robot_state_msg.tau_j = robot_state.tau_J;
+                    robot_state_pub->publish(robot_state_msg);
+
                     return generateMotion(commands, model, period, robot_state, time, vt);
                 });
             }
             catch (const franka::Exception &e)
             {
-                RCLCPP_WARN(node->get_logger(), e.what());
-                RCLCPP_INFO(node->get_logger(), "Running error recovery...");
+                RCLCPP_WARN(node_sub->get_logger(), e.what());
+                RCLCPP_INFO(node_sub->get_logger(), "Running error recovery...");
                 robot.automaticErrorRecovery();
             }
         }
     });
 
-    rclcpp::spin(node);
+    rclcpp::spin(node_sub);
     rclcpp::shutdown();
 
     if (thread.joinable())
