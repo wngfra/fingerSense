@@ -14,9 +14,9 @@ from franka_msgs.msg import TactileSignal
 
 
 # PID parameters
-kp = 0.0001
-ki = 0.000001
-kd = 0.00001
+kp = 1e-5
+ki = 3e-6
+kd = 4e-6
 window_size = 15
 
 
@@ -58,6 +58,8 @@ class SignalProcessor(Node):
 
         self.data[1:, :] = self.data[:-1, :]
         self.data[0, :] = msg.data
+
+        self.get_logger().info('Average tactile reading: [%d]' % np.mean(msg.data, dtype=np.int))
 
     # Timer callback for publisher
     def timer_callback(self):

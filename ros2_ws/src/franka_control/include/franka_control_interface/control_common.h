@@ -10,7 +10,7 @@
 #include <franka/robot.h>
 #include <franka/robot_state.h>
 
-franka::CartesianVelocities generateMotion(const std::array<double, 6> &commands, const franka::Model &model, franka::Duration period, const franka::RobotState &robot_state, double &time, std::array<double, 6> &vt);
+franka::CartesianVelocities generateMotion(const std::array<double, 6> &commands, franka::Duration period, double &time, const double time_limit, std::array<double, 6> &vt);
 
 /**
  * Sets a default collision behavior, joint impedance, Cartesian impedance, and filter frequency.
