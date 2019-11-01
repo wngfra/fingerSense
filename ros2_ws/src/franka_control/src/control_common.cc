@@ -7,7 +7,7 @@
 
 #include "franka_control_interface/control_common.h"
 
-franka::CartesianVelocities generateMotion(const std::array<double, 6> &vc, franka::Duration period, double &time, const double time_limit, std::array<double, 6> &vt)
+franka::CartesianVelocities generateMotion(const std::array<double, 6> &v_command, franka::Duration period, double &time, const double time_limit, std::array<double, 6> &v_init)
 {
     time += period.toSec();
 
@@ -18,11 +18,12 @@ franka::CartesianVelocities generateMotion(const std::array<double, 6> &vc, fran
 
     for (int i = 0; i < 6; ++i)
     {
-        double v1 = vt[i];
-        double v2 = vc[i];
+        double v1 = v_init[i];
+        double v2 = v_command[i];
 
         if (v2 == v1)
-        {
+        {   
+            if (v2 == 0) is_finished = true;
             vd[i] = v2;
         }
         else if (v2 > v1)

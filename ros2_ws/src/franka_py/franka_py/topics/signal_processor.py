@@ -15,8 +15,8 @@ from franka_msgs.msg import TactileSignal
 
 # PID parameters
 kp = 1e-5
-ki = 3e-6
-kd = 4e-6
+ki = 2e-6
+kd = 3e-6
 window_size = 15
 
 
@@ -41,10 +41,10 @@ class SignalProcessor(Node):
         self.target_val = 5200
 
         # Setup publisher
-        timer_period = 1.0
+        self.timer_period = 0.3
         self.pub = self.create_publisher(
             FrankaCommand, 'franka_commands', qos_profile)
-        self.tmr = self.create_timer(timer_period, self.timer_callback)
+        self.tmr = self.create_timer(self.timer_period, self.timer_callback)
 
     # Subscriber callback
     def tactile_callback(self, msg):
@@ -59,16 +59,15 @@ class SignalProcessor(Node):
         self.data[1:, :] = self.data[:-1, :]
         self.data[0, :] = msg.data
 
-        self.get_logger().info('Average tactile reading: [%d]' % np.mean(msg.data, dtype=np.int))
-
     # Timer callback for publisher
     def timer_callback(self):
         msg = FrankaCommand()
         msg.header.frame_id = 'base'
         msg.header.stamp = self.get_clock().now().to_msg()
-        y = 0.0
+        x = (0.001 * self.i / 10.0) if self.i < 500 else 0.05
         z = kp * self.error[0] + ki * self.error_sum + kd * self.error_d
-        msg.command = [0.0, y, z, 0.0, 0.0, 0.0]
+        msg.command = [0.0, 0.0, -0.01, 0.0, 0.0, 0.0]
+        msg.response_time = self.timer_period
         self.pub.publish(msg)
 
 
