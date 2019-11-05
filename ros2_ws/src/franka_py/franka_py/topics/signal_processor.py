@@ -38,7 +38,7 @@ class SignalProcessor(Node):
         self.error = np.zeros(window_size, dtype=np.float64)
         self.error_d = 0.0
         self.error_sum = 0.0
-        self.target_val = 5200
+        self.target_val = 5150
 
         # Setup publisher
         self.timer_period = 0.3
@@ -66,7 +66,7 @@ class SignalProcessor(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         x = (0.001 * self.i / 10.0) if self.i < 500 else 0.05
         z = kp * self.error[0] + ki * self.error_sum + kd * self.error_d
-        msg.command = [0.0, 0.0, -0.01, 0.0, 0.0, 0.0]
+        msg.command = [0.0, 0.0, z, 0.0, 0.0, 0.0]
         msg.response_time = self.timer_period
         self.pub.publish(msg)
 

@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 
     // Create FrankaCommand subscriber node
     double response_time = 0.3;
-    std::array<double, 6> commands{};
+    std::array<double, 6> commands{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     auto topic = std::string("franka_commands");
     auto node_sub = std::make_shared<FrankaCommandListener>(topic, commands, response_time);
 
