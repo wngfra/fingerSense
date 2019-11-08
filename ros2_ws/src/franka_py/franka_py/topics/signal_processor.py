@@ -9,15 +9,31 @@ from rclpy.qos import qos_profile_sensor_data
 from rclpy.qos import QoSProfile
 from rclpy.qos import QoSReliabilityPolicy
 
-from franka_msgs.msg import FrankaCommand
-from franka_msgs.msg import TactileSignal
+from franka_msgs.msg import FrankaCommand, FrankaState, TactileSignal
 
 
 # PID parameters
-kp = 1e-5
-ki = 2e-6
+kp = 3e-5
+ki = 3e-6
 kd = 3e-6
 window_size = 15
+
+theta = 0.01
+
+
+def rotMat(alpha, beta, gamma):
+    ''' Compute rotational matrix'''
+
+    rotation_x = np.matrix([[1, 0,              0],
+                            [0, np.cos(alpha), -np.sin(alpha)],
+                            [0, np.sin(alpha),  np.cos(alpha)]])
+    rotation_y = np.matrix([[np.cos(beta), 0, np.sin(beta)],
+                            [0,            1, 0],
+                            [-np.sin(beta), 0, np.cos(beta)]])
+    rotation_z = np.matrix([[np.cos(gamma), -np.sin(gamma), 0],
+                            [np.sin(gamma),  np.cos(gamma), 0],
+                            [0,              0,             1]])
+    return rotation_x * rotation_y * rotation_z
 
 
 class SignalProcessor(Node):
@@ -32,13 +48,17 @@ class SignalProcessor(Node):
             self.get_logger().info('Best effort communicator')
 
         # Setup subscriber
-        self.sub = self.create_subscription(
+        self.sub_bot = self.create_subscription(
+            FrankaState, 'robot_states', self.robot_state_callback, qos_profile)
+        self.robot_states = np.zeros((window_size, 28), dtype=np.float64)
+
+        self.sub_tac = self.create_subscription(
             TactileSignal, 'tactile_signals', self.tactile_callback, qos_profile)
         self.data = np.zeros((window_size, 16), dtype=np.int)
         self.error = np.zeros(window_size, dtype=np.float64)
         self.error_d = 0.0
         self.error_sum = 0.0
-        self.target_val = 5150
+        self.target_val = 5200
 
         # Setup publisher
         self.timer_period = 0.3
@@ -47,6 +67,15 @@ class SignalProcessor(Node):
         self.tmr = self.create_timer(self.timer_period, self.timer_callback)
 
     # Subscriber callback
+    def robot_state_callback(self, msg):
+        O_T_EE = msg.o_t_ee
+        O_F_EXT_HAT_K = msg.o_f_ext_hat_k
+        TAU_EXT_HAT_FILTERED = msg.tau_ext_hat_filtered
+        V_EE = msg.v_ee
+        self.robot_states[1:, :] = self.robot_states[:-1, :]
+        self.robot_states[0, :] = np.concatenate(
+            (O_T_EE, O_F_EXT_HAT_K, V_EE), axis=0)
+
     def tactile_callback(self, msg):
         self.i += 1
 
@@ -61,12 +90,16 @@ class SignalProcessor(Node):
 
     # Timer callback for publisher
     def timer_callback(self):
+        x0, y0, z0         = self.robot_states[10], self.robot_states[11], self.robot_states[12]
+        alpha, beta, gamma = self.robot_states[13], self.robot_states[14], self.robot_states[15]
+        rotation_matrix = rotMat(alpha, beta, gamma)
+        dest = rotation_matrix * theta + [[x0], [y0], [z0]]
+        x, y, z = '''todo'''
+
         msg = FrankaCommand()
         msg.header.frame_id = 'base'
         msg.header.stamp = self.get_clock().now().to_msg()
-        x = (0.001 * self.i / 10.0) if self.i < 500 else 0.05
-        z = kp * self.error[0] + ki * self.error_sum + kd * self.error_d
-        msg.command = [0.0, 0.0, z, 0.0, 0.0, 0.0]
+        msg.command = [x, y, z, 0.0, 0.0, 0.0]
         msg.response_time = self.timer_period
         self.pub.publish(msg)
 
