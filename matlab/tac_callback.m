@@ -4,7 +4,7 @@ function [] = tac_callback(msg)
 global tacmat
 
 if isempty(tacmat)
-    tacmat = zeros(100, 18);
+    tacmat = zeros(64, 18);
 end
 
 stamp = msg.header.stamp;

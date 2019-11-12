@@ -111,7 +111,7 @@ int main(int argc, char **argv)
                     robot_state_msg.header.frame_id = "end_effector";
                     robot_state_msg.header.stamp = node_pub->get_clock()->now();
                     robot_state_msg.o_t_ee = robot_state.O_T_EE;
-                    robot_state_msg.o_t_ee_c = robot_state.O_ddP_EE_c;
+                    robot_state_msg.o_t_ee_c = robot_state.O_T_EE_c;
                     robot_state_msg.o_f_ext_hat_k = robot_state.O_F_ext_hat_K;
                     robot_state_msg.tau_ext_hat_filtered = robot_state.tau_ext_hat_filtered;
                     robot_state_msg.v_ee = v0_array;
