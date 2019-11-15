@@ -22,51 +22,21 @@ for i=1:10
     pause(0.3)
 end
 
+
+[LoD,HiD] = wfilters('haar','d');
+
 figure(1)
-set(gcf, 'units','normalized','outerposition',[0 0 1 1]);
-subplot(1, 2, 1)
 hold on
-himg = imshow(zeros(L,16));
-xlabel('channel')
-ylabel('time')
-subplot(1, 2, 2)
-hold on
-fimg = imshow(zeros(51,16));
-xlabel('channel')
-ylabel('frequency')
-
-figure(2)
-xlabel('P1')
-ylabel('P2')
-zlabel('P3')
-
-pause(3)
-for i=1:50
+for i=1:100
     X = tacmat(:, 3:end);
-    Y = fft(X);
-    P2 = abs(Y/L);
-    P1 = P2(1:L/2+1, :);
-    P1(2:end-1, :) = 2*P1(2:end-1, :);
-    [coeff, ~, latent] = pca(P1);
-    features = P1 * coeff(:, 1:3);
-    
-    figure(2)
-    hold on
-    scatter3(features(:,1), features(:,2), features(:,3), 'x');
-    hold off
-    
-    figure(3)
-    hold on
-    xlabel('frequncy(Hz)')
-    ylabel('|P2(f)|')
-    f = 32*(0:(L/2))/L;
-    P1(1, :) = 0.0;
-    plot(f, P1)
-    hold off
-    
-    norm_dat = (X - baseline)./(5500 - baseline);
-    set(himg, 'CData', norm_dat)
-    set(fimg, 'CData', P1)
-    drawnow
+    [cA,cH,cV,cD] = dwt2(X,LoD,HiD,'mode','symh');
+    subplot(2,2,1)
+    imagesc(cA)
+    subplot(2,2,2)
+    imagesc(cH)
+    subplot(2,2,3)
+    imagesc(cV)
+    subplot(2,2,4)
+    imagesc(cD)
     pause(0.3)
 end
