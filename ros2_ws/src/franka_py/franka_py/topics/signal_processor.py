@@ -13,9 +13,9 @@ from franka_msgs.msg import FrankaCommand, FrankaState, TactileSignal
 
 
 # PID parameters
-kp = 3e-5
-ki = 3e-6
-kd = 3e-6
+kp = 1e-5
+ki = 1e-6
+kd = 1e-6
 window_size = 15
 
 theta = 0.01
@@ -90,12 +90,18 @@ class SignalProcessor(Node):
 
     # Timer callback for publisher
     def timer_callback(self):
-        x0, y0, z0         = self.robot_states[10], self.robot_states[11], self.robot_states[12]
-        alpha, beta, gamma = self.robot_states[13], self.robot_states[14], self.robot_states[15]
-        rotation_matrix = rotMat(alpha, beta, gamma)
-        dest = rotation_matrix * theta + [[x0], [y0], [z0]]
-        x, y, z = '''todo'''
+        # x0, y0, z0         = self.robot_states[10], self.robot_states[11], self.robot_states[12]
+        # alpha, beta, gamma = self.robot_states[13], self.robot_states[14], self.robot_states[15]
+        # rotation_matrix = rotMat(alpha, beta, gamma)
+        # dest = rotation_matrix * theta + [[x0], [y0], [z0]]
+        if self.i <= 300: 
+            x = 0.0
+            y = 0.0
+        else:
+            x = np.sin(self.i / 100) * 0.02
+            y = np.sin(self.i / 100) * 0.02
 
+        z = kp * self.error[0] + ki * self.error_sum + kd * self.error_d
         msg = FrankaCommand()
         msg.header.frame_id = 'base'
         msg.header.stamp = self.get_clock().now().to_msg()

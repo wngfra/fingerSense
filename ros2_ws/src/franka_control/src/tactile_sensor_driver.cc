@@ -68,12 +68,13 @@ public:
             msg_->data = data;
             pub_->publish(std::move(msg_));
 
-            // Print sensor response on the screen
+            /* Print sensor response on the screen
             RCLCPP_INFO(this->get_logger(), "Tactile readings: %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu",
                         data[0], data[1], data[2], data[3],
                         data[4], data[5], data[6], data[7],
                         data[8], data[9], data[10], data[11],
                         data[12], data[13], data[14], data[15]);
+            */
         };
 
         timer_ = create_wall_timer(30ms, publish);

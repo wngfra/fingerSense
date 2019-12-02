@@ -22,21 +22,12 @@ for i=1:10
     pause(0.3)
 end
 
+uiwait(msgbox('Calibration done! Press OK to continue...'));
 
-[LoD,HiD] = wfilters('haar','d');
-
-figure(1)
-hold on
 for i=1:100
-    X = tacmat(:, 3:end);
-    [cA,cH,cV,cD] = dwt2(X,LoD,HiD,'mode','symh');
-    subplot(2,2,1)
-    imagesc(cA)
-    subplot(2,2,2)
-    imagesc(cH)
-    subplot(2,2,3)
-    imagesc(cV)
-    subplot(2,2,4)
-    imagesc(cD)
-    pause(0.3)
+    shftsig = tacmat(:, 3:end) - baseline;
+    shftsig(abs(shftsig) < 15) = 0;
+    stft(shftsig(:, 9), 32)
+    view(-45, 65)
+    pause(3)
 end
