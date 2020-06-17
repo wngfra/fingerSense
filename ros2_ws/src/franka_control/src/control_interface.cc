@@ -10,7 +10,7 @@
 #include <franka/robot.h>
 #include <franka/robot_state.h>
 
-#include "franka_control_interface/control_common.h"
+#include "control_common.h"
 #include "franka_msgs/msg/franka_command.hpp"
 #include "franka_msgs/msg/franka_state.hpp"
 
