@@ -1,8 +1,6 @@
 #pragma once
 
 #include <array>
-#include <condition_variable>
-#include <mutex>
 
 #include <franka/control_types.h>
 #include <franka/duration.h>
