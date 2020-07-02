@@ -1,6 +1,5 @@
 #include <array>
 #include <chrono>
-#include <thread>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -14,35 +13,22 @@
 #include "franka_msgs/msg/franka_command.hpp"
 #include "franka_msgs/msg/franka_state.hpp"
 
-#ifndef LOGGING
-#define LOGGING 1
-#endif
-
 using namespace std::chrono_literals;
 
 class FrankaCommandListener : public rclcpp::Node
 {
 public:
-    explicit FrankaCommandListener(const std::string &topic_name, std::array<double, 6> &commands, double &response_time) : Node("franka_control_interface")
+    explicit FrankaCommandListener() : Node("franka_control_interface")
     {
         auto callback = [&](const franka_msgs::msg::FrankaCommand::SharedPtr msg) -> void {
             commands = std::move(msg->command);
             response_time = std::move(msg->response_time);
-            if (LOGGING)
-            {
-                RCLCPP_INFO(this->get_logger(), "Command sent to Franka is [%f, %f, %f, %f, %f, %f]",
-                            commands[0],
-                            commands[1],
-                            commands[2],
-                            commands[3],
-                            commands[4],
-                            commands[5]);
-                RCLCPP_INFO(this->get_logger(), "Response time set to [%f]s.",
-                            response_time);
-            }
+
+            // Send commands to robot controller
+
         };
 
-        sub_ = create_subscription<franka_msgs::msg::FrankaCommand>(topic_name, 10, callback);
+        sub_ = create_subscription<franka_msgs::msg::FrankaCommand>("franka_commands", 10, callback);
     }
 
 private:
@@ -51,15 +37,17 @@ private:
 
 int main(int argc, char **argv)
 {
+    // Initialize rclcpp
+    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
+    rclcpp::init(argc, argv);
+
+    /* TODO: put robot state publisher into a separate node
     if (argc != 2)
     {
         std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
         return -1;
     }
 
-    // Initialize rclcpp
-    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
-    rclcpp::init(argc, argv);
     // Connect to robot
     franka::Robot robot(argv[1]);
     setDefaultBehavior(robot);
@@ -73,7 +61,7 @@ int main(int argc, char **argv)
     // Prepare for robot state publisher
     auto node_pub = rclcpp::Node::make_shared("robot_state_publisher");
     auto robot_state_pub = node_pub->create_publisher<franka_msgs::msg::FrankaState>("robot_states", 10);
-    rclcpp::WallRate loop_rate(30);
+    rclcpp::WallRate loop_rate(10);
     franka_msgs::msg::FrankaState robot_state_msg;
 
     // Robot controller thread
@@ -129,12 +117,10 @@ int main(int argc, char **argv)
             }
         }
     });
+    */
 
-    rclcpp::spin(node_sub);
+    rclcpp::spin(std::make_shared<FrankaCommandListener>());
     rclcpp::shutdown();
-
-    if (thread.joinable())
-        thread.join();
 
     return 0;
 }
