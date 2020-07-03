@@ -25,7 +25,7 @@ public:
             response_time = std::move(msg->response_time);
 
             // Send commands to robot controller
-
+            
         };
 
         sub_ = create_subscription<franka_msgs::msg::FrankaCommand>("franka_commands", 10, callback);
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
     rclcpp::init(argc, argv);
 
-    
+
 
     /* TODO: put robot state publisher into a separate node
     if (argc != 2)

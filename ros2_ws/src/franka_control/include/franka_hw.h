@@ -1,17 +1,27 @@
 #pragma once
 
-#include <franka/control_types.h>
-#include <franka/duration.h>
-#include <franka/model.h>
-#include <franka/robot.h>
-#include <franka/robot_state.h>
+#include <atomic>
 
-namespace franka_hw {
+#include <rclcpp/rclcpp.hpp>
 
-class FrankaHW {
+namespace franka_hw
+{
+    // Singleton class for franka hardware abstraction
+    class FrankaHW
+    {
     public:
-    FrankaHW();
-    ~FrankaHW();
-}
+        FrankaHW(rclcpp::Node::sharedPtr, string &);
+        // ~FrankaHW();
+
+        void update();
+        void control();
+        void reset(rclcpp::Node::sharedPtr);
+
+    private:
+        std::atomic_bool has_error = false;
+        std::atomic_bool has_instance = false;
+        ;
+        franka::Robot robot;
+    }
 
 } // namespace franka_hw
