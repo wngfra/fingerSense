@@ -1,4 +1,5 @@
 #include <exception>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -74,14 +75,6 @@ namespace franka_hw
             return false;
         }
 
-        if (!nh.get_parameters("joint_limit_warning_threshold", joint_limit_warning_threshold_))
-        {
-            RCLCPP_INFO(nh->get_logger(),
-                        "No parameter joint_limit_warning_threshold is found, using default "
-                        "value %f",
-                        joint_limit_warning_threshold_);
-        }
-
         // Get full collision behavior config from the parameter server.
         std::vector<double> thresholds =
             getCollisionThresholds("lower_torque_thresholds_acceleration", nh,
@@ -121,7 +114,18 @@ namespace franka_hw
         return true;
     }
 
-    FrankaHW::update() {}
+    void initRobot()
+    {
+        robot_ = std::make_unique<franka::Robot>(robot_ip_);
+        model_ = std::make_unique<franka::Model>(robot_->loadModel());
+
+        update(robot_->readOnce());
+    }
+
+    FrankaHW::update(const franka::RobotState& robot_state) {
+        std::lock_guard<std::mutex> ros_lock(ros_state_mutex_);
+        robot_state_ros_ = robot_state;
+    }
 
     FrankaHW::control() {}
 

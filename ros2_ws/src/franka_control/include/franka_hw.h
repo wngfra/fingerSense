@@ -77,6 +77,10 @@ namespace franka_hw
         };
 
         CollisionConfig collision_config_;
+
+        std::mutex ros_state_mutex_;
+        franka::RobotState robot_state_ros_{};
+
         franka::CartesianPose cartP_ros2command_;
         franka::CartesianVelocities cartV_ros2command_;
 
