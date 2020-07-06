@@ -8,3 +8,5 @@
 3. `franka_msgs` contains custom message types
 4. `franka_control` contains sensor driver and Franka Emika Panda control interface
 5. Visualizing data in realtime with `MATLAB` ROS2 toolkit
+6. `docker/podman build -t ros2franka .` creates a ROS2 image with libfranka installed. For OCI runtime, create a development container with `podman run -it --name ros2-foxy --privileged -v <path-to devel>:/mnt/devel -w /mnt/devel -v /tmp/.X11-unix:/tmp/.X11-unix --env DISPLAY --device /dev/dri --device /dev/snd --device /dev/input --net=host <tag-of-image> bash`.
+`
