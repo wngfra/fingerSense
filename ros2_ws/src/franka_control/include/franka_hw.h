@@ -46,7 +46,7 @@ namespace franka_hw
         virtual void initRobot();
 
         virtual void update();
-        virtual void control();
+        virtual void control(std::shared_ptr<rclcpp::Node> nh) const;
 
     protected:
         /**

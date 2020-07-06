@@ -127,7 +127,20 @@ namespace franka_hw
         robot_state_ros_ = robot_state;
     }
 
-    FrankaHW::control() {}
+    FrankaHW::control() {
+        if (!initialized_) {
+            RCLCPP_ERROR("FrankaHW: Call to control before initialization!");
+            return;
+        }
+
+        if (!controller_active_) {
+            return;
+        }
+
+        franka::Duration last_time = robot_state_ros_.time;
+
+        // TODO: control
+    }
 
     FrankaHW::reset() {}
 
