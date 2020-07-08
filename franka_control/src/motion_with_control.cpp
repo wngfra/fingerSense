@@ -1,10 +1,10 @@
-// Copyright (c) 2017 Franka Emika GmbH
-// Use of this source code is governed by the Apache-2.0 license, see LICENSE
-#include <cmath>
+#include <array>
 #include <exception>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <math.h>
+#include <memory>
 #include <stdlib.h>
 #include <string>
 #include <sys/utsname.h>
@@ -13,7 +13,10 @@
 #include <franka/exception.h>
 #include <franka/robot.h>
 
+#include <rclcpp/rclcpp.hpp>
+
 #include "franka_control/examples_common.h"
+#include "franka_control/TactileListener.h"
 
 /**
  * @example motion_with_control.cpp
@@ -119,10 +122,11 @@ namespace
     return trajectory;
   }
 
-} // anonymous namespace
+} // namespace
 
 franka::RealtimeConfig gRealtimeConfig = franka::RealtimeConfig::kEnforce;
 
+// Use non-realtime config if PREEMPT_RT patch not found
 void setRealtimeConfig()
 {
   struct utsname buffer;
@@ -151,6 +155,13 @@ int main(int argc, char **argv)
     std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
     return -1;
   }
+
+  // ROS2 initialization
+  rclcpp::init(argc, argv);
+  std::shared_ptr<std::array<int, 16>> data = std::make_shared<std::array<int, 16>>();
+  data->fill(0);
+  rclcpp::Node::SharedPtr tactile_listener_node = std::make_shared<franka_control::TactileListener>(data);
+  rclcpp::spin(tactile_listener_node);
 
   // Parameters
   const size_t joint_number{3};
@@ -223,6 +234,9 @@ int main(int argc, char **argv)
     std::cout << e.what() << std::endl;
     return -1;
   }
+
+  // ROS2 shutdown
+  rclcpp::shutdown();
 
   return 0;
 }
