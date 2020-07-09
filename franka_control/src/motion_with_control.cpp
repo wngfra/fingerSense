@@ -1,4 +1,5 @@
 #include <array>
+#include <chrono>
 #include <exception>
 #include <fstream>
 #include <iomanip>
@@ -8,15 +9,22 @@
 #include <stdlib.h>
 #include <string>
 #include <sys/utsname.h>
+#include <thread>
 #include <vector>
 
+#include <Eigen/Dense>
+
+#include <franka/duration.h>
 #include <franka/exception.h>
+#include <franka/model.h>
 #include <franka/robot.h>
 
 #include <rclcpp/rclcpp.hpp>
 
 #include "franka_control/examples_common.h"
 #include "franka_control/TactileListener.h"
+
+using namespace std::chrono_literals;
 
 /**
  * @example motion_with_control.cpp
@@ -28,215 +36,200 @@
  * @warning Before executing this example, make sure there is enough space in front of the robot.
  */
 
-namespace
+namespace franka_control
 {
-
-  class Controller
-  {
-  public:
-    Controller(size_t dq_filter_size,
-               const std::array<double, 7> &K_P, // NOLINT(readability-identifier-naming)
-               const std::array<double, 7> &K_D) // NOLINT(readability-identifier-naming)
-        : dq_current_filter_position_(0), dq_filter_size_(dq_filter_size), K_P_(K_P), K_D_(K_D)
+    class Controller
     {
-      std::fill(dq_d_.begin(), dq_d_.end(), 0);
-      dq_buffer_ = std::make_unique<double[]>(dq_filter_size_ * 7);
-      std::fill(&dq_buffer_.get()[0], &dq_buffer_.get()[dq_filter_size_ * 7], 0);
-    }
+    public:
+        Controller(std::array<int, 16> *bufPtr)
+        {
+            bufPtr_ = bufPtr;
+        }
 
-    inline franka::Torques step(const franka::RobotState &state)
-    {
-      updateDQFilter(state);
+        void printBuffer()
+        {
+            std::cout << "Tactile buffer: ";
 
-      std::array<double, 7> tau_J_d; // NOLINT(readability-identifier-naming)
-      for (size_t i = 0; i < 7; i++)
-      {
-        tau_J_d[i] = K_P_[i] * (state.q_d[i] - state.q[i]) + K_D_[i] * (dq_d_[i] - getDQFiltered(i));
-      }
-      return tau_J_d;
-    }
+            for (int i = 0; i < 16; ++i)
+            {
+                std::cout << (*bufPtr_)[i] << " ";
+            }
+            std::cout << std::endl;
+        }
 
-    void updateDQFilter(const franka::RobotState &state)
-    {
-      for (size_t i = 0; i < 7; i++)
-      {
-        dq_buffer_.get()[dq_current_filter_position_ * 7 + i] = state.dq[i];
-      }
-      dq_current_filter_position_ = (dq_current_filter_position_ + 1) % dq_filter_size_;
-    }
-
-    double getDQFiltered(size_t index) const
-    {
-      double value = 0;
-      for (size_t i = index; i < 7 * dq_filter_size_; i += 7)
-      {
-        value += dq_buffer_.get()[i];
-      }
-      return value / dq_filter_size_;
-    }
-
-  private:
-    size_t dq_current_filter_position_;
-    size_t dq_filter_size_;
-
-    const std::array<double, 7> K_P_; // NOLINT(readability-identifier-naming)
-    const std::array<double, 7> K_D_; // NOLINT(readability-identifier-naming)
-
-    std::array<double, 7> dq_d_;
-    std::unique_ptr<double[]> dq_buffer_;
-  };
-
-  std::vector<double> generateTrajectory(double a_max)
-  {
-    // Generating a motion with smooth velocity and acceleration.
-    // Squared sine is used for the acceleration/deceleration phase.
-    std::vector<double> trajectory;
-    constexpr double kTimeStep = 0.001;         // [s]
-    constexpr double kAccelerationTime = 1;     // time spend accelerating and decelerating [s]
-    constexpr double kConstantVelocityTime = 1; // time spend with constant speed [s]
-    // obtained during the speed up
-    // and slow down [rad/s^2]
-    double a = 0; // [rad/s^2]
-    double v = 0; // [rad/s]
-    double t = 0; // [s]
-    while (t < (2 * kAccelerationTime + kConstantVelocityTime))
-    {
-      if (t <= kAccelerationTime)
-      {
-        a = pow(sin(t * M_PI / kAccelerationTime), 2) * a_max;
-      }
-      else if (t <= (kAccelerationTime + kConstantVelocityTime))
-      {
-        a = 0;
-      }
-      else
-      {
-        const double deceleration_time =
-            (kAccelerationTime + kConstantVelocityTime) - t; // time spent in the deceleration phase
-        a = -pow(sin(deceleration_time * M_PI / kAccelerationTime), 2) * a_max;
-      }
-      v += a * kTimeStep;
-      t += kTimeStep;
-      trajectory.push_back(v);
-    }
-    return trajectory;
-  }
-
-} // namespace
-
-franka::RealtimeConfig gRealtimeConfig = franka::RealtimeConfig::kEnforce;
+    private:
+        std::array<int, 16> *bufPtr_;
+    };
+} // namespace franka_control
 
 // Use non-realtime config if PREEMPT_RT patch not found
-void setRealtimeConfig()
+void setRealtimeConfig(franka::RealtimeConfig *gRealtimeConfig)
 {
-  struct utsname buffer;
-  if (uname(&buffer) == 0)
-  {
-    try
+    struct utsname buffer;
+    if (uname(&buffer) == 0)
     {
-      std::string version(buffer.version);
-      if (version.find("PREEMPT_RT") == std::string::npos)
-      {
-        gRealtimeConfig = franka::RealtimeConfig::kIgnore;
-        std::cout << "Running non-realtime config" << std::endl;
-      }
+        try
+        {
+            std::string version(buffer.version);
+            if (version.find("PREEMPT_RT") == std::string::npos)
+            {
+                *gRealtimeConfig = franka::RealtimeConfig::kIgnore;
+                std::cout << "Running non-realtime config" << std::endl;
+            }
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
     }
-    catch (const std::exception &e)
-    {
-      std::cerr << e.what() << std::endl;
-    }
-  }
 }
 
 int main(int argc, char **argv)
 {
-  if (argc != 2)
-  {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
-    return -1;
-  }
+    if (argc != 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
+        return -1;
+    }
 
-  // ROS2 initialization
-  rclcpp::init(argc, argv);
-  std::shared_ptr<std::array<int, 16>> data = std::make_shared<std::array<int, 16>>();
-  data->fill(0);
-  rclcpp::Node::SharedPtr tactile_listener_node = std::make_shared<franka_control::TactileListener>(data);
-  rclcpp::spin(tactile_listener_node);
+    franka::RealtimeConfig gRealtimeConfig = franka::RealtimeConfig::kEnforce;
+    setRealtimeConfig(&gRealtimeConfig);
 
-  // Parameters
-  const size_t joint_number{3};
-  const size_t filter_size{5};
+    std::array<int, 16> buffer{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    std::array<int, 16> *bufPtr = &buffer;
 
-  // NOLINTNEXTLINE(readability-identifier-naming)
-  const std::array<double, 7> K_P{{200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0}};
-  // NOLINTNEXTLINE(readability-identifier-naming)
-  const std::array<double, 7> K_D{{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}};
-  const double max_acceleration{1.0};
+    // ROS2 initialization
+    rclcpp::init(argc, argv);
+    auto nh = std::make_shared<franka_control::TactileListener>(bufPtr);
+    // Spin node asynchronously
+    std::thread threaded_executor([&]() {
+        rclcpp::spin(nh);
+    });
+    rclcpp::sleep_for(1s);
 
-  Controller controller(filter_size, K_P, K_D);
+    // Compliance parameters
+    const double translational_stiffness{150.0};
+    const double rotational_stiffness{10.0};
+    Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
+    stiffness.setZero();
+    stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+    stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+    damping.setZero();
+    damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) *
+                                       Eigen::MatrixXd::Identity(3, 3);
+    damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) *
+                                           Eigen::MatrixXd::Identity(3, 3);
 
-  try
-  {
-    setRealtimeConfig();
-    franka::Robot robot(argv[1], gRealtimeConfig);
-    setDefaultBehavior(robot);
+    // franka control
+    try
+    {
+        franka::Robot robot(argv[1], gRealtimeConfig);
+        setDefaultBehavior(robot);
+        // load the kinematics and dynamics model
+        franka::Model model = robot.loadModel();
 
-    // First move the robot to a suitable joint configuration
-    std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
-    MotionGenerator motion_generator(0.5, q_goal);
-    std::cout << "WARNING: This example will move the robot! "
-              << "Please make sure to have the user stop button at hand!" << std::endl
-              << "Press Enter to continue..." << std::endl;
-    std::cin.ignore();
-    robot.control(motion_generator);
-    std::cout << "Finished moving to initial joint configuration." << std::endl;
+        // First move the robot to a suitable joint configuration
+        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+        MotionGenerator motion_generator(0.5, q_goal);
+        std::cout << "WARNING: This example will move the robot! "
+                  << "Please make sure to have the user stop button at hand!" << std::endl
+                  << "Press Enter to continue..." << std::endl;
+        std::cin.ignore();
+        robot.control(motion_generator);
+        std::cout << "Finished moving to initial joint configuration." << std::endl;
 
-    // Set additional parameters always before the control loop, NEVER in the control loop!
-    // Set collision behavior.
-    robot.setCollisionBehavior(
-        {{20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0}}, {{20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0}},
-        {{20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0}}, {{20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0}},
-        {{20.0, 20.0, 20.0, 25.0, 25.0, 25.0}}, {{20.0, 20.0, 20.0, 25.0, 25.0, 25.0}},
-        {{20.0, 20.0, 20.0, 25.0, 25.0, 25.0}}, {{20.0, 20.0, 20.0, 25.0, 25.0, 25.0}});
 
-    size_t index = 0;
-    std::vector<double> trajectory = generateTrajectory(max_acceleration);
+        auto desired_pose = robot.readOnce().O_T_EE;
+        // define callback for the torque control loop
+        std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
+            impedance_control_callback = [&](const franka::RobotState &robot_state,
+                                             franka::Duration /*duration*/) -> franka::Torques {
+            // equilibrium point is the current position
+            Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
+            Eigen::Vector3d position_d(initial_transform.translation());
+            Eigen::Quaterniond orientation_d(initial_transform.linear());
 
-    robot.control(
-        [&](const franka::RobotState &robot_state, franka::Duration) -> franka::Torques {
-          return controller.step(robot_state);
-        },
-        [&](const franka::RobotState &, franka::Duration period) -> franka::JointVelocities {
-          index += period.toMSec();
+            // get state variables
+            std::array<double, 7> coriolis_array = model.coriolis(robot_state);
+            std::array<double, 42> jacobian_array =
+                model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
 
-          if (index >= trajectory.size())
-          {
-            index = trajectory.size() - 1;
-          }
+            // convert to Eigen
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
+            Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+            Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+            Eigen::Vector3d position(transform.translation());
+            Eigen::Quaterniond orientation(transform.linear());
 
-          franka::JointVelocities velocities{{0, 0, 0, 0, 0, 0, 0}};
-          velocities.dq[joint_number] = trajectory[index];
+            // compute error to desired equilibrium pose
+            // position error
+            Eigen::Matrix<double, 6, 1> error;
+            error.head(3) << position - position_d;
 
-          if (index >= trajectory.size() - 1)
-          {
-            return franka::MotionFinished(velocities);
-          }
-          return velocities;
+            // orientation error
+            // "difference" quaternion
+            if (orientation_d.coeffs().dot(orientation.coeffs()) < 0.0)
+            {
+                orientation.coeffs() << -orientation.coeffs();
+            }
+            // "difference" quaternion
+            Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d);
+            error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+            // Transform to base frame
+            error.tail(3) << -transform.linear() * error.tail(3);
+
+            // compute control
+            Eigen::VectorXd tau_task(7), tau_d(7);
+
+            // Spring damper system with damping ratio=1
+            tau_task << jacobian.transpose() * (-stiffness * error - damping * (jacobian * dq));
+            tau_d << tau_task + coriolis;
+
+            std::array<double, 7> tau_d_array{};
+            Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+            return tau_d_array;
+        };
+
+        std::array<double, 16> initial_pose;
+        double time = 0.0;
+        robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
+            time += period.toSec();
+
+            if (time == 0.0)
+            {
+                initial_pose = robot_state.O_T_EE_c;
+            }
+
+            constexpr double kRadius = 0.3;
+            double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
+            double delta_x = kRadius * std::sin(angle);
+            double delta_z = kRadius * (std::cos(angle) - 1);
+
+            std::array<double, 16> new_pose = initial_pose;
+            new_pose[12] += delta_x;
+            new_pose[14] += delta_z;
+
+            desired_pose = new_pose;
+
+            if (time >= 10.0)
+            {
+                std::cout << std::endl
+                          << "Finished motion, shutting down example" << std::endl;
+                return franka::MotionFinished(new_pose);
+            }
+            return new_pose;
         });
-  }
-  catch (const franka::ControlException &e)
-  {
-    std::cout << e.what() << std::endl;
-    return -1;
-  }
-  catch (const franka::Exception &e)
-  {
-    std::cout << e.what() << std::endl;
-    return -1;
-  }
+    }
+    catch (const franka::Exception &e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
 
-  // ROS2 shutdown
-  rclcpp::shutdown();
+    // ROS2 shutdown
+    threaded_executor.join();
+    rclcpp::shutdown();
 
-  return 0;
+    return 0;
 }

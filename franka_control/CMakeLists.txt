@@ -14,7 +14,7 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -O3)
 endif()
 
 # find dependencies
@@ -25,6 +25,9 @@ find_package(tactile_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.8.0 REQUIRED)
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 include_directories(
   include
@@ -57,6 +60,7 @@ foreach(target ${APPS})
   target_link_libraries(${target}     
     examples_common
     tactile_listener
+    Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
     "tactile_msgs"

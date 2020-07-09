@@ -12,18 +12,17 @@ namespace franka_control
     class TactileListener : public rclcpp::Node
     {
     public:
-        TactileListener(const std::shared_ptr<std::array<int, 16>> bufPtr) : Node("tactile_listener")
-        {   
-            bufPtr_ = bufPtr;
-            init();
+        TactileListener(std::array<int, 16> *bufPtr) : Node("tactile_listener")
+        {
+            init(bufPtr);
         }
 
     private:
-        void init();
-        void topicCallback(const tactile_msgs::msg::TactileSignal::SharedPtr msg);
+        void init(std::array<int, 16> *bufPtr);
+        void topicCallback(const tactile_msgs::msg::TactileSignal::SharedPtr msg) const;
 
         rclcpp::Subscription<tactile_msgs::msg::TactileSignal>::SharedPtr subscription_;
-    
-        std::shared_ptr<std::array<int, 16>> bufPtr_;
+
+        std::array<int, 16> *bufPtr_ = nullptr;
     };
 } // namespace franka_control

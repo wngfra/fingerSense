@@ -1,0 +1,20 @@
+{
+    "C_Cpp.default.includePath": [
+        "/opt/ros/foxy/include",
+        "/usr/include",
+        "/usr/local/include",
+        "${workspaceFolder}/**"
+    ],
+    "files.associations": {
+        "csignal": "cpp",
+        "strstream": "cpp",
+        "*.tcc": "cpp",
+        "list": "cpp",
+        "set": "cpp",
+        "future": "cpp",
+        "shared_mutex": "cpp",
+        "cfenv": "cpp",
+        "typeindex": "cpp",
+        "variant": "cpp"
+    }
+}
