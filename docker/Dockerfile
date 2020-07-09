@@ -1,5 +1,5 @@
-# This is an auto generated Dockerfile for ros2:source
-# generated from docker_images_ros2/source/create_ros_image.Dockerfile.em
+# Copyright (c) 2020 wngfra
+# Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
 ARG FROM_IMAGE=osrf/ros:foxy-desktop
 FROM $FROM_IMAGE
