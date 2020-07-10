@@ -121,9 +121,9 @@ int main(int argc, char **argv)
                                            Eigen::MatrixXd::Identity(3, 3);
 
     // franka control
+    franka::Robot robot(argv[1], gRealtimeConfig);
     try
     {
-        franka::Robot robot(argv[1], gRealtimeConfig);
         setDefaultBehavior(robot);
         // load the kinematics and dynamics model
         franka::Model model = robot.loadModel();
@@ -131,12 +131,13 @@ int main(int argc, char **argv)
         // First move the robot to a suitable joint configuration
         std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
         MotionGenerator motion_generator(0.5, q_goal);
-        std::cout << "WARNING: This example will move the robot! "
-                  << "Please make sure to have the user stop button at hand!" << std::endl
+        std::cout << "Please make sure to have the user stop button at hand!" << std::endl
                   << "Press Enter to continue..." << std::endl;
         std::cin.ignore();
         robot.control(motion_generator);
-        std::cout << "Finished moving to initial joint configuration." << std::endl;
+        std::cout << "Finished moving to initial joint configuration." << std::endl
+                  << "Press Enter to continue..." << std::endl;
+        std::cin.ignore();
 
         auto desired_pose = robot.readOnce().O_T_EE;
         // define callback for the torque control loop
@@ -191,51 +192,44 @@ int main(int argc, char **argv)
             return tau_d_array;
         };
 
-        std::array<double, 6> initial_wrench;
-        double dz = 0.0;
+        std::array<double, 6> initial_wrench, delta_wrench;
+        std::array<double, 16> initial_pose;
         double time = 0.0;
         robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
 
             if (time == 0.0)
             {
+                initial_pose = robot_state.O_T_EE_c;
                 initial_wrench = robot_state.O_F_ext_hat_K;
             }
 
-            std::array<double, 6> delta_wrench = robot_state.O_F_ext_hat_K;
-            std::array<double, 16> new_pose = robot_state.O_T_EE_c;
             for (int i = 0; i < 6; ++i)
             {
                 delta_wrench[i] -= initial_wrench[i];
             }
 
-            if (time <= M_PI_2)
-            {
-                dz = sin(M_PI_2) * 0.001;
-            }
-            else
-            {
-                dz = 0.001;
-            }
-            if (delta_wrench[2] <= 1)
-            {
-                new_pose[2] -= dz;
-            }
-
-            desired_pose = new_pose;
-
-            if (time >= 10.0)
+            if (time >= 5.0)
             {
                 std::cout << std::endl
                           << "Finished motion, shutting down example" << std::endl;
-                return franka::MotionFinished(new_pose);
+                return franka::MotionFinished(desired_pose);
             }
-            return new_pose;
+
+            constexpr double kRadius = 0.5;
+            double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
+            double delta_z = kRadius * (std::cos(angle) - 1);
+
+            desired_pose = initial_pose;
+            desired_pose[14] += delta_z;
+            return desired_pose;
         });
     }
     catch (const franka::Exception &e)
     {
         std::cerr << e.what() << std::endl;
+        std::cout << "Running error recovery..." << std::endl;
+        robot.automaticErrorRecovery();
     }
 
     // ROS2 shutdown
