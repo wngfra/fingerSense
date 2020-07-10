@@ -18,6 +18,7 @@ ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 ENV DISPLAY
+ENV CMAKE_PREFIX_PATH=$AMENT_PREFIX_PATH:$CMAKE_PREFIX_PATH
 
-RUN mkdir -p /mnt/devel
-WORKDIR /mnt/devel
+RUN mkdir -p /mnt/devel/ros_ws
+WORKDIR /mnt/devel/ros_ws
