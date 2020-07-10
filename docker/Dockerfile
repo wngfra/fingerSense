@@ -9,15 +9,24 @@ RUN apt-get update && apt-get install -q -y \
     build-essential \
     libeigen3-dev \
     libpoco-dev \
-    vim
+    vim \
+    --no-install-recommends \
+	&& rm -rf /var/lib/apt/lists/*
 
 # Download, build and install libfranka
-WORKDIR /usr/src
-RUN git clone --recursive https://github.com/frankaemika/libfranka.git
+RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
+
 WORKDIR /usr/src/libfranka/build
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
-RUN make
-RUN make install
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
+    && make \
+    && make install
+
+WORKDIR /mnt/ros2_ws
+RUN rm -rf /usr/src/libfranka/build
+
+# ROS2 & CMake configurations
+RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc \
+    && echo "export CMAKE_PREFIX_PATH=\$AMENT_PREFIX_PATH:\$CMAKE_PREFIX_PATH" >> ~/.bashrc
 
 # Configure environment variables
 ARG ROS_DISTRO=foxy
@@ -25,12 +34,4 @@ ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 
-ENV CMAKE_PREFIX_PATH=$AMENT_PREFIX_PATH:$CMAKE_PREFIX_PATH
-ENV DISPLAY=$DISPLAY
-
-# Enable X11 forwarding
-VOLUME /tmp/.X11-unix /tmp/.X11-unix
-
-CMD echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
-
-ENTRYPOINT /usr/bin/bash
+ENTRYPOINT ["bash"]
