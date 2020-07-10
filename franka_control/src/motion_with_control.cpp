@@ -4,8 +4,6 @@
 #include <array>
 #include <chrono>
 #include <exception>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <memory>
@@ -13,7 +11,6 @@
 #include <string>
 #include <sys/utsname.h>
 #include <thread>
-#include <vector>
 
 #include <Eigen/Dense>
 
@@ -141,7 +138,6 @@ int main(int argc, char **argv)
         robot.control(motion_generator);
         std::cout << "Finished moving to initial joint configuration." << std::endl;
 
-
         auto desired_pose = robot.readOnce().O_T_EE;
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
@@ -195,24 +191,36 @@ int main(int argc, char **argv)
             return tau_d_array;
         };
 
-        std::array<double, 16> initial_pose;
+        std::array<double, 6> initial_wrench;
+        double dz = 0.0;
         double time = 0.0;
         robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
 
             if (time == 0.0)
             {
-                initial_pose = robot_state.O_T_EE_c;
+                initial_wrench = robot_state.O_F_ext_hat_K;
             }
 
-            constexpr double kRadius = 0.3;
-            double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
-            double delta_x = kRadius * std::sin(angle);
-            double delta_z = kRadius * (std::cos(angle) - 1);
+            std::array<double, 6> delta_wrench = robot_state.O_F_ext_hat_K;
+            std::array<double, 16> new_pose = robot_state.O_T_EE_c;
+            for (int i = 0; i < 6; ++i)
+            {
+                delta_wrench[i] -= initial_wrench[i];
+            }
 
-            std::array<double, 16> new_pose = initial_pose;
-            new_pose[12] += delta_x;
-            new_pose[14] += delta_z;
+            if (time <= M_PI_2)
+            {
+                dz = sin(M_PI_2) * 0.001;
+            }
+            else
+            {
+                dz = 0.001;
+            }
+            if (delta_wrench[2] <= 1)
+            {
+                new_pose[2] -= dz;
+            }
 
             desired_pose = new_pose;
 
