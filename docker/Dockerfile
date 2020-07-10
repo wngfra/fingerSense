@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -q -y \
 
 # Download, build and install libfranka
 WORKDIR /usr/src
-RUN git clone --recursive https://github.com/frankaemika/libfranka.git \
+RUN git clone --recursive https://github.com/frankaemika/libfranka.git
 WORKDIR /usr/src/libfranka/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     make \
