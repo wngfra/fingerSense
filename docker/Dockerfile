@@ -15,15 +15,16 @@ RUN apt-get update && apt-get install -q -y \
 WORKDIR /usr/src
 RUN git clone --recursive https://github.com/frankaemika/libfranka.git
 WORKDIR /usr/src/libfranka/build
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
-    make \
-    make install
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
+RUN make
+RUN make install
 
 # Configure environment variables
 ARG ROS_DISTRO=foxy
 ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
+
 ENV CMAKE_PREFIX_PATH=$AMENT_PREFIX_PATH:$CMAKE_PREFIX_PATH
 ENV DISPLAY=$DISPLAY
 
