@@ -11,13 +11,26 @@ RUN apt-get update && apt-get install -q -y \
     libpoco-dev \
     vim
 
-RUN cd /usr/src; git clone --recursive https://github.com/frankaemika/libfranka.git; mkdir -p libfranka/build; cd libfranka/build; cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..; make; make install
+# Download, build and install libfranka
+WORKDIR /usr/src
+RUN git clone --recursive https://github.com/frankaemika/libfranka.git \
+RUN mkdir -p libfranka/build
+WORKDIR libfranka/build
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
+    make \
+    make install
 
+# Configure environment variables
 ARG ROS_DISTRO=foxy
 ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 ENV CMAKE_PREFIX_PATH=$AMENT_PREFIX_PATH:$CMAKE_PREFIX_PATH
+ENV DISPLAY=$DISPLAY
 
-RUN mkdir -p /mnt/devel/ros_ws
-WORKDIR /mnt/devel/ros_ws
+# Enable X11 forwarding
+VOLUME /tmp/.X11-unix /tmp/.X11-unix
+
+CMD echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
+
+ENTRYPOINT /usr/bin/bash
