@@ -99,13 +99,13 @@ int main(int argc, char **argv)
     std::array<int, 16> *bufPtr = &buffer;
 
     // ROS2 initialization
-    rclcpp::init(argc, argv);
-    auto nh = std::make_shared<franka_control::TactileListener>(bufPtr);
-    // Spin node asynchronously
-    std::thread threaded_executor([&]() {
-        rclcpp::spin(nh);
-    });
-    rclcpp::sleep_for(1s);
+//    rclcpp::init(argc, argv);
+//    auto nh = std::make_shared<franka_control::TactileListener>(bufPtr);
+//    // Spin node asynchronously
+//    std::thread threaded_executor([&]() {
+//        rclcpp::spin(nh);
+//    });
+//    rclcpp::sleep_for(1s);
 
     // Compliance parameters
     const double translational_stiffness{150.0};
@@ -140,11 +140,18 @@ int main(int argc, char **argv)
         std::cin.ignore();
 
         auto desired_pose = robot.readOnce().O_T_EE;
+        auto d_x = 0.0;
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
             impedance_control_callback = [&](const franka::RobotState &robot_state,
                                              franka::Duration /*duration*/) -> franka::Torques {
             // equilibrium point is the current position
+            if (std::abs(robot_state.O_F_ext_hat_K[2]) <= 3) {
+                desired_pose[14] -= 0.0001;
+            } else if (std::abs(d_x) <= 0.3) {
+                d_x += 0.0001;
+                desired_pose[12] += 0.0001;
+            }
             Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
             Eigen::Vector3d position_d(initial_transform.translation());
             Eigen::Quaterniond orientation_d(initial_transform.linear());
@@ -195,7 +202,7 @@ int main(int argc, char **argv)
         std::array<double, 6> initial_wrench, delta_wrench;
         std::array<double, 16> initial_pose;
         double time = 0.0;
-        robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
+        robot.control(impedance_control_callback);/*, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
 
             if (time == 0.0)
@@ -203,27 +210,29 @@ int main(int argc, char **argv)
                 initial_pose = robot_state.O_T_EE_c;
                 initial_wrench = robot_state.O_F_ext_hat_K;
             }
-
+            
+            delta_wrench = robot_state.O_F_ext_hat_K;
             for (int i = 0; i < 6; ++i)
             {
                 delta_wrench[i] -= initial_wrench[i];
             }
 
-            if (time >= 5.0)
+            if (time >= 30.0)
             {
                 std::cout << std::endl
                           << "Finished motion, shutting down example" << std::endl;
                 return franka::MotionFinished(desired_pose);
             }
 
-            constexpr double kRadius = 0.5;
+            constexpr double kRadius = 0.3;
             double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
-            double delta_z = kRadius * (std::cos(angle) - 1);
+            double delta_x = kRadius * (std::cos(angle) - 1);
 
             desired_pose = initial_pose;
-            desired_pose[14] += delta_z;
+            desired_pose[12] += delta_x;
             return desired_pose;
         });
+        */
     }
     catch (const franka::Exception &e)
     {
@@ -233,8 +242,8 @@ int main(int argc, char **argv)
     }
 
     // ROS2 shutdown
-    threaded_executor.join();
-    rclcpp::shutdown();
+//    threaded_executor.join();
+//    rclcpp::shutdown();
 
     return 0;
 }
