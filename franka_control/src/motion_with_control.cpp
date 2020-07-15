@@ -139,19 +139,37 @@ int main(int argc, char **argv)
                   << "Press Enter to continue..." << std::endl;
         std::cin.ignore();
 
-        auto desired_pose = robot.readOnce().O_T_EE;
-        auto d_x = 0.0;
+        std::array<double, 16> initial_pose;
+        double d_x = 0.0;
+        double time = 0.0, x_time = 0.0, step = 1.0;
+        bool onTouch = false;
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
             impedance_control_callback = [&](const franka::RobotState &robot_state,
-                                             franka::Duration /*duration*/) -> franka::Torques {
-            // equilibrium point is the current position
-            if (std::abs(robot_state.O_F_ext_hat_K[2]) <= 3) {
-                desired_pose[14] -= 0.0001;
-            } else if (std::abs(d_x) <= 0.3) {
-                d_x += 0.0001;
-                desired_pose[12] += 0.0001;
+                                             franka::Duration duration) -> franka::Torques {
+            if (time == 0.0) {
+                initial_pose = robot_state.O_T_EE;
             }
+            time += duration.toSec();
+
+            auto desired_pose = initial_pose;
+            
+            // equilibrium point is the current position
+            if (std::abs(robot_state.O_F_ext_hat_K[2]) <= 5) {
+                desired_pose[14] -= step * 0.0001;
+                step += 1.0;
+                std::cout << "desired height: " << desired_pose[14] << std::endl;
+            } else {
+                onTouch = true;
+            }
+            if (onTouch) {
+                x_time += duration.toSec();
+                constexpr double kRadius = 0.1;
+                double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * x_time));
+                d_x = kRadius * (std::cos(angle) - 1);
+                desired_pose[12] += d_x;
+            }
+
             Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
             Eigen::Vector3d position_d(initial_transform.translation());
             Eigen::Quaterniond orientation_d(initial_transform.linear());
@@ -199,9 +217,9 @@ int main(int argc, char **argv)
             return tau_d_array;
         };
 
-        std::array<double, 6> initial_wrench, delta_wrench;
-        std::array<double, 16> initial_pose;
-        double time = 0.0;
+        // std::array<double, 6> initial_wrench, delta_wrench;
+        // std::array<double, 16> initial_pose;
+        // double time = 0.0;
         robot.control(impedance_control_callback);/*, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
 
