@@ -72,5 +72,6 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "core": "cpp"
-    }
+    },
+    "python.pythonPath": "/usr/bin/python3"
 }

@@ -9,9 +9,13 @@ RUN apt-get update && apt-get install -q -y \
     build-essential \
     libeigen3-dev \
     libpoco-dev \
+    python3-pip \
     vim \
     --no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install autopep8 \
+    jedi
 
 # Download, build and install libfranka
 RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
