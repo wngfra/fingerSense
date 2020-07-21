@@ -1,3 +1,4 @@
 [submodule "can2wifi2ros"]
 	path = can2wifi2ros
-	url = https://github.com/wngfra/can2wifi2ros
+	url = https://github.com/wngfra/can2wifi2ros.git
+	branch = master

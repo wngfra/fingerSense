@@ -7,9 +7,9 @@
 #include <iostream>
 #include <math.h>
 #include <memory>
+#include <numeric>
 #include <stdlib.h>
 #include <string>
-#include <sys/utsname.h>
 #include <thread>
 
 #include <Eigen/Dense>
@@ -21,11 +21,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include "tactile_msgs/msg/tactile_signal.hpp"
-#include "franka_control/examples_common.h"
-#include "franka_control/TactileListener.h"
-
-using std::placeholders::_1;
+#include "franka_control/common.h"
+#include "franka_control/TactileUpdater.h"
 
 using namespace std::chrono_literals;
 
@@ -39,56 +36,6 @@ using namespace std::chrono_literals;
  * @warning Before executing this example, make sure there is enough space in front of the robot.
  */
 
-namespace franka_control
-{
-    class Controller : public rclcpp::Node
-    {
-    public:
-        Controller(std::array<int, 16> *bufPtr) : Node("franka_controller")
-        {
-            bufPtr_ = bufPtr;
-
-            subscription_ = this->create_subscription<tactile_msgs::msg::TactileSignal>("/tactile_signals", 30, std::bind(&Controller::sub_callback, this, _1));
-        }
-
-    private:
-        void sub_callback(const tactile_msgs::msg::TactileSignal::SharedPtr msg) const
-        {
-            *bufPtr_ = msg->data;
-        }
-
-        std::array<int, 16> *bufPtr_;
-        rclcpp::Subscription<tactile_msgs::msg::TactileSignal>::SharedPtr subscription_;
-    };
-} // namespace franka_control
-
-// Use non-realtime config if PREEMPT_RT patch not found
-franka::RealtimeConfig getRealtimeConfig()
-{
-    struct utsname buffer;
-    if (uname(&buffer) == 0)
-    {
-        try
-        {
-            std::string version(buffer.version);
-            if (version.find("PREEMPT_RT") == std::string::npos)
-            {
-                printf("Setting non-realtime config.\n");
-                return franka::RealtimeConfig::kIgnore;
-            }
-            else
-            {
-                printf("Settings realtime config.\n");
-                return franka::RealtimeConfig::kEnforce;
-            }
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << e.what() << std::endl;
-        }
-    }
-}
-
 int main(int argc, char **argv)
 {
 
@@ -98,11 +45,12 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    std::array<int, 16> buffer{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    // Prepare a buffer to update tactile signals
+    float tactileValue = 0.0;
 
     // ROS2 initialization
     rclcpp::init(argc, argv);
-    auto nh = std::make_shared<franka_control::Controller>(&buffer);
+    auto nh = std::make_shared<TactileUpdater>(&tactileValue);
     // Spin node asynchronously
     std::thread threaded_executor([&]() {
         rclcpp::spin(nh);
@@ -116,12 +64,12 @@ int main(int argc, char **argv)
     stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
     stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
     damping.setZero();
-    damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) *
-                                       Eigen::MatrixXd::Identity(3, 3);
-    damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) *
-                                           Eigen::MatrixXd::Identity(3, 3);
+    damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
+    damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
 
-    // franka control
+    std::cout << damping << std::endl;
+
+    // Controllers
     franka::Robot robot(argv[1], getRealtimeConfig());
     try
     {
@@ -145,14 +93,6 @@ int main(int argc, char **argv)
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
             impedance_control_callback = [&](const franka::RobotState &robot_state,
                                              franka::Duration duration) -> franka::Torques {
-            // NOTE: for testing
-            printf("Data: ");
-            for (int i = 0; i < 16; ++i)
-            {
-                printf("%d ", buffer[i]);
-            }
-            printf("\n");
-
             Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
             Eigen::Vector3d position_d(initial_transform.translation());
             Eigen::Quaterniond orientation_d(initial_transform.linear());
@@ -201,29 +141,22 @@ int main(int argc, char **argv)
             return tau_d_array;
         };
 
-        std::array<double, 16> initial_pose;
         double time = 0.0;
         robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
-
-            if (time == 0.0)
-            {
-                initial_pose = robot_state.O_T_EE_c;
-            }
 
             if (time >= 30.0)
             {
                 std::cout << std::endl
                           << "Finished motion, shutting down example" << std::endl;
-                return franka::MotionFinished(desired_pose);
+                return franka::MotionFinished(robot_state.O_T_EE);
             }
 
-            constexpr double kRadius = 0.3;
-            double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
-            double delta_z = kRadius * (std::cos(angle) - 1);
-
-            desired_pose = initial_pose;
+            desired_pose = robot_state.O_T_EE_c;
+            double delta_z = (tactileValue - 130.0) * 0.00001;
             desired_pose[14] += delta_z;
+
+            printf("desired z: %f\n", desired_pose[14]);
             return desired_pose;
         });
     }
@@ -235,8 +168,8 @@ int main(int argc, char **argv)
     }
 
     // ROS2 shutdown
-    threaded_executor.join();
     rclcpp::shutdown();
+    threaded_executor.join();
 
     return 0;
 }

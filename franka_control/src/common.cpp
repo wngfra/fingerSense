@@ -1,13 +1,42 @@
 // Copyright (c) 2017 Franka Emika GmbH
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
-#include "franka_control/examples_common.h"
+#include "franka_control/common.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <exception>
+#include <iostream>
+#include <sys/utsname.h>
 
 #include <franka/exception.h>
 #include <franka/robot.h>
+
+franka::RealtimeConfig getRealtimeConfig()
+{
+  struct utsname buffer;
+  if (uname(&buffer) == 0)
+  {
+    try
+    {
+      std::string version(buffer.version);
+      if (version.find("PREEMPT_RT") == std::string::npos)
+      {
+        printf("Setting non-realtime config.\n");
+        return franka::RealtimeConfig::kIgnore;
+      }
+      else
+      {
+        printf("Setting realtime config.\n");
+        return franka::RealtimeConfig::kEnforce;
+      }
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << e.what() << std::endl;
+    }
+  }
+}
 
 void setDefaultBehavior(franka::Robot &robot)
 {

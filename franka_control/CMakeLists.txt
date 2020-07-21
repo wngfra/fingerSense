@@ -34,18 +34,18 @@ include_directories(
 )
 
 # franka control commons
-add_library(examples_common STATIC
-  src/examples_common.cpp
+add_library(common STATIC
+  src/common.cpp
 )
 
-target_link_libraries(examples_common PUBLIC Franka::Franka Eigen3::Eigen3)
+target_link_libraries(common PUBLIC Franka::Franka Eigen3::Eigen3)
 
 # ROS2 tactile_listener node 
-add_library(tactile_listener STATIC
-  src/TactileListener.cpp
+add_library(tactile_updater STATIC
+  src/TactileUpdater.cpp
 )
 
-ament_target_dependencies(tactile_listener 
+ament_target_dependencies(tactile_updater
   "tactile_msgs"
   "rclcpp"
 )
@@ -58,8 +58,8 @@ set(APPS
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target}     
-    examples_common
-    tactile_listener
+    common
+    tactile_updater
     Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}

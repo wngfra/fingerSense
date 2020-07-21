@@ -17,19 +17,27 @@
  */
 
 /**
+ * Gets a real-time configuration based on linux kernel version
+ *
+ * @return a franka::RealtimeConfig::kEnforce if `PREEMPT_RT` found otherwise franka::RealtimeConfig::kIgnore
+ */
+franka::RealtimeConfig getRealtimeConfig();
+
+/**
  * Sets a default collision behavior, joint impedance, Cartesian impedance, and filter frequency.
  *
  * @param[in] robot Robot instance to set behavior on.
  */
-void setDefaultBehavior(franka::Robot& robot);
+void setDefaultBehavior(franka::Robot &robot);
 
 /**
  * An example showing how to generate a joint pose motion to a goal position. Adapted from:
  * Wisama Khalil and Etienne Dombre. 2002. Modeling, Identification and Control of Robots
  * (Kogan Page Science Paper edition).
  */
-class MotionGenerator {
- public:
+class MotionGenerator
+{
+public:
   /**
    * Creates a new MotionGenerator instance for a target q.
    *
@@ -46,13 +54,13 @@ class MotionGenerator {
    *
    * @return Joint positions for use inside a control loop.
    */
-  franka::JointPositions operator()(const franka::RobotState& robot_state, franka::Duration period);
+  franka::JointPositions operator()(const franka::RobotState &robot_state, franka::Duration period);
 
- private:
+private:
   using Vector7d = Eigen::Matrix<double, 7, 1, Eigen::ColMajor>;
   using Vector7i = Eigen::Matrix<int, 7, 1, Eigen::ColMajor>;
 
-  bool calculateDesiredValues(double t, Vector7d* delta_q_d) const;
+  bool calculateDesiredValues(double t, Vector7d *delta_q_d) const;
   void calculateSynchronizedValues();
 
   static constexpr double kDeltaQMotionFinished = 1e-6;
