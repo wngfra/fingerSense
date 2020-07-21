@@ -21,6 +21,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include "tactile_msgs/srv/change_state.hpp"
 #include "franka_control/common.h"
 #include "franka_control/TactileUpdater.h"
 
@@ -41,7 +42,7 @@ int main(int argc, char **argv)
 
     if (argc != 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Usage: %s <robot-hostname>", argv[0]);
         return -1;
     }
 
@@ -51,6 +52,24 @@ int main(int argc, char **argv)
     // ROS2 initialization
     rclcpp::init(argc, argv);
     auto nh = std::make_shared<TactileUpdater>(&tactileValue);
+
+    // Setup client for ChangeState service
+    auto client_node = rclcpp::Node::make_shared("change_state_client");
+    auto client = client_node->create_client<tactile_msgs::srv::ChangeState>("/tactile_publisher/change_state");
+    auto request = std::make_shared<tactile_msgs::srv::ChangeState::Request>();
+    request->transition = 1;
+
+    // Wait 1s for calibration to finish
+    std::this_thread::sleep_for(1s);
+
+    auto result = client->async_send_request(request);
+    // Wait for the result.
+    if (rclcpp::spin_until_future_complete(client_node, result) ==
+        rclcpp::FutureReturnCode::SUCCESS)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Info %s", result.get()->info);
+    }
+
     // Spin node asynchronously
     std::thread threaded_executor([&]() {
         rclcpp::spin(nh);
@@ -67,10 +86,9 @@ int main(int argc, char **argv)
     damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
     damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
 
-    std::cout << damping << std::endl;
-
     // Controllers
     franka::Robot robot(argv[1], getRealtimeConfig());
+    bool has_error = false;
     try
     {
         setDefaultBehavior(robot);
@@ -156,15 +174,27 @@ int main(int argc, char **argv)
             double delta_z = (tactileValue - 130.0) * 0.00001;
             desired_pose[14] += delta_z;
 
-            printf("desired z: %f\n", desired_pose[14]);
             return desired_pose;
         });
     }
     catch (const franka::Exception &e)
     {
-        std::cerr << e.what() << std::endl;
-        std::cout << "Running error recovery..." << std::endl;
-        robot.automaticErrorRecovery();
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "%s", e.what());
+        has_error = true;
+    }
+
+    if (has_error)
+    {
+        try
+        {
+            robot.automaticErrorRecovery();
+            has_error = false;
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Successfully recovered from error.");
+        }
+        catch (const franka::Exception &e)
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "%s\nAutomatic error recovery failed!", e.what());
+        }
     }
 
     // ROS2 shutdown
