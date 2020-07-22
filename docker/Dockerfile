@@ -38,10 +38,4 @@ ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 
-# Create a sudo user
-RUN useradd --create-home --home-dir /home/ubuntu --shell /bin/bash --user-group --groups adm,sudo ubuntu && \
-    echo ubuntu:ubuntu | chpasswd && \
-    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-USER ubuntu
-
 ENTRYPOINT ["bash"]

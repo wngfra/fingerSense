@@ -3,6 +3,7 @@
         "/opt/ros/foxy/include",
         "/usr/include",
         "/usr/local/include",
+        "/mnt/ros2_ws/**",
         "${workspaceFolder}/**"
     ],
     "files.associations": {

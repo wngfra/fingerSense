@@ -1,6 +1,7 @@
 // Copyright (c) 2020 wngfra
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <exception>
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
     if (rclcpp::spin_until_future_complete(client_node, result) ==
         rclcpp::FutureReturnCode::SUCCESS)
     {
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Info %s", result.get()->info);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Service call successful!");
     }
 
     // Spin node asynchronously
@@ -75,46 +76,55 @@ int main(int argc, char **argv)
         rclcpp::spin(nh);
     });
 
-    // Compliance parameters
-    const double translational_stiffness{150.0};
-    const double rotational_stiffness{10.0};
-    Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
-    stiffness.setZero();
-    stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-    stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-    damping.setZero();
-    damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
-    damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) * Eigen::MatrixXd::Identity(3, 3);
-
     // Controllers
-    franka::Robot robot(argv[1], getRealtimeConfig());
     bool has_error = false;
+    franka::Robot robot(argv[1], getRealtimeConfig());
+    franka::Model model = robot.loadModel();
+
     try
     {
         setDefaultBehavior(robot);
-        // load the kinematics and dynamics model
-        franka::Model model = robot.loadModel();
 
         // First move the robot to a suitable joint configuration
         std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
         MotionGenerator motion_generator(0.5, q_goal);
-        std::cout << "Please make sure to have the user stop button at hand!" << std::endl
-                  << "Press Enter to continue..." << std::endl;
-        std::cin.ignore();
         robot.control(motion_generator);
-        std::cout << "Finished moving to initial joint configuration." << std::endl
-                  << "Press Enter to continue..." << std::endl;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished moving to initial joint configuration.\nPress Enter to continue...");
         std::cin.ignore();
 
-        auto desired_pose = robot.readOnce().O_T_EE;
+        /*************************
+        // TODO: Custom controller
+        *************************/
+        // Compliance parameters
+        const double translational_stiffness{150.0};
+        const double rotational_stiffness{10.0};
+        Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
+        stiffness.setZero();
+        stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+        stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+        damping.setZero();
+        damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness) *
+                                           Eigen::MatrixXd::Identity(3, 3);
+        damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) *
+                                               Eigen::MatrixXd::Identity(3, 3);
+
+        franka::RobotState initial_state = robot.readOnce();
+
+        // equilibrium point is the initial position
+        Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
+        Eigen::Vector3d position_d(initial_transform.translation());
+        Eigen::Quaterniond orientation_d(initial_transform.linear());
+
+        // set collision behavior
+        robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
+                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
+                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
+                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}});
+
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
             impedance_control_callback = [&](const franka::RobotState &robot_state,
-                                             franka::Duration duration) -> franka::Torques {
-            Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
-            Eigen::Vector3d position_d(initial_transform.translation());
-            Eigen::Quaterniond orientation_d(initial_transform.linear());
-
+                                             franka::Duration /*duration*/) -> franka::Torques {
             // get state variables
             std::array<double, 7> coriolis_array = model.coriolis(robot_state);
             std::array<double, 42> jacobian_array =
@@ -155,31 +165,17 @@ int main(int argc, char **argv)
 
             std::array<double, 7> tau_d_array{};
             Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
-
             return tau_d_array;
         };
 
-        double time = 0.0;
-        robot.control(impedance_control_callback, [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
-            time += period.toSec();
+        // start real-time control loop
+        robot.control(impedance_control_callback);
 
-            if (time >= 30.0)
-            {
-                std::cout << std::endl
-                          << "Finished motion, shutting down example" << std::endl;
-                return franka::MotionFinished(robot_state.O_T_EE);
-            }
-
-            desired_pose = robot_state.O_T_EE_c;
-            double delta_z = (tactileValue - 130.0) * 0.00001;
-            desired_pose[14] += delta_z;
-
-            return desired_pose;
-        });
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down example");
     }
     catch (const franka::Exception &e)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "%s", e.what());
+        RCLCPP_ERROR(rclcpp::get_logger("libfranka"), "%s", e.what());
         has_error = true;
     }
 
