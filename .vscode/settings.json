@@ -1,8 +1,8 @@
 {
     "C_Cpp.default.includePath": [
-        "/opt/ros/foxy/include",
-        "/usr/include",
-        "/usr/local/include",
+        "/opt/ros/foxy/include/**",
+        "/usr/include/**",
+        "/usr/local/include/**",
         "/mnt/ros2_ws/**",
         "${workspaceFolder}/**"
     ],
@@ -72,7 +72,9 @@
         "thread": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "dense": "cpp",
+        "eigenvalues": "cpp"
     },
     "python.pythonPath": "/usr/bin/python3"
 }

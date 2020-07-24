@@ -93,11 +93,11 @@ int main(int argc, char **argv)
         std::cin.ignore();
 
         /*************************
-        // TODO: Custom controller
+        // REVIEW: Approach the horizontal plane
         *************************/
         // Compliance parameters
-        const double translational_stiffness{150.0};
-        const double rotational_stiffness{10.0};
+        double translational_stiffness{150.0};
+        double rotational_stiffness{60.0};
         Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
         stiffness.setZero();
         stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -109,22 +109,16 @@ int main(int argc, char **argv)
                                                Eigen::MatrixXd::Identity(3, 3);
 
         franka::RobotState initial_state = robot.readOnce();
-
-        // equilibrium point is the initial position
-        Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
-        Eigen::Vector3d position_d(initial_transform.translation());
-        Eigen::Quaterniond orientation_d(initial_transform.linear());
-
-        // set collision behavior
-        robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                                   {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}});
+        auto desired_pose = initial_state.O_T_EE;
+        auto max_x = desired_pose[12] + 0.03;
 
         // define callback for the torque control loop
-        std::function<franka::Torques(const franka::RobotState &, franka::Duration)>
-            impedance_control_callback = [&](const franka::RobotState &robot_state,
-                                             franka::Duration /*duration*/) -> franka::Torques {
+        std::function<franka::Torques(const franka::RobotState &, franka::Duration)> cartesian_impedance_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+            // equilibrium point is moving down
+            Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
+            Eigen::Vector3d position_d(initial_transform.translation());
+            Eigen::Quaterniond orientation_d(initial_transform.linear());
+
             // get state variables
             std::array<double, 7> coriolis_array = model.coriolis(robot_state);
             std::array<double, 42> jacobian_array =
@@ -165,13 +159,88 @@ int main(int argc, char **argv)
 
             std::array<double, 7> tau_d_array{};
             Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+
+            if (tactileValue >= 10)
+            {
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down example");
+                franka::Torques torques(tau_d_array);
+                return franka::MotionFinished(torques);
+            }
+
+            desired_pose[14] -= 0.0001;
+            if (desired_pose[12] <= max_x)
+            {
+                desired_pose[12] += 0.0001;
+            }
+
+            return tau_d_array;
+        };
+        // start real-time control loop
+        robot.control(cartesian_impedance_control_callback);
+
+        /***********************
+         * Sliding motion
+         **********************/
+        double time = 0.0;
+        std::array<double, 16> initial_pose;
+
+        // parameters
+        constexpr double desired_value{10.0};
+        constexpr double k_p{0.01};          // NOLINT(readability-identifier-naming)
+        constexpr double k_i{0.02};          // NOLINT(readability-identifier-naming)
+        constexpr double filter_gain{0.001}; // NOLI    NT(readability-identifier-naming)
+
+        double error_integral{0.0}, error{0.0};
+
+        // define callback for the force control loop
+        std::function<franka::Torques(const franka::RobotState &, franka::Duration)> force_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+            error = desired_value - tactileValue;
+            error_integral += error * period.toSec();
+
+            Eigen::VectorXd desired_force_torque(6), tau_cmd(7);
+            desired_force_torque.setZero();
+            desired_force_torque(2) = -(k_p * error + k_i * error_integral);
+
+            std::array<double, 7> gravity_array = model.gravity(robot_state);
+            std::array<double, 42> jacobian_array = model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
+
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
+            Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_j_d(robot_state.tau_J_d.data());
+
+            tau_cmd << jacobian.transpose() * desired_force_torque + tau_j_d - gravity;
+            std::array<double, 7> tau_d_array;
+            Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
             return tau_d_array;
         };
 
-        // start real-time control loop
-        robot.control(impedance_control_callback);
+        // define callback for the sliding control loop
 
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down example");
+        std::function<franka::CartesianPose(const franka::RobotState &, franka::Duration)> cartesian_control_callback = [&](const franka::RobotState &robot_state,
+                                                                                                                            franka::Duration period) -> franka::CartesianPose {
+            time += period.toSec();
+
+            if (time == 0.0)
+            {
+                initial_pose = robot_state.O_T_EE_c;
+            }
+
+            constexpr double kRadius = 0.2;
+            double angle = M_PI / 4 * (1 - std::cos(M_PI / 5.0 * time));
+            double delta_x = kRadius * std::sin(angle);
+
+            std::array<double, 16> new_pose = initial_pose;
+            new_pose[12] += delta_x;
+
+            if (time >= 30.0)
+            {
+                std::cout << std::endl
+                          << "Finished motion, shutting down example" << std::endl;
+                return franka::MotionFinished(new_pose);
+            }
+            return new_pose;
+        };
+        robot.control(force_control_callback, cartesian_control_callback);
     }
     catch (const franka::Exception &e)
     {
