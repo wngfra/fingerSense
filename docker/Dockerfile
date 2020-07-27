@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -q -y \
     libeigen3-dev \
     libpoco-dev \
     python3-pip \
+    python3-tk \
     vim \
     --no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
