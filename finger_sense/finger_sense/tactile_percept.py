@@ -20,9 +20,11 @@ class TactilePercept(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('stack_size', 33)
+                ('stack_size', 129)
             ]
         )
+
+        self.__rate = 0
 
         self.__stack_size = self.get_parameter(
             'stack_size').get_parameter_value().integer_value
@@ -34,24 +36,24 @@ class TactilePercept(Node):
         self.__subscription = self.create_subscription(
             TactileSignal, '/tactile_signals', self.percept_callback, 10)
 
-        # TODO realtime analysis
-        plt.ion()
-        self.fig, self.ax = plt.subplots()
-        self.lines = self.ax.plot(self.__stack)
-
+        self.fig, self.axes = plt.subplots(2, 1)
 
     def percept_callback(self, msg):
         new_data = msg.data
         self.append_stack(new_data)
+        self.__rate += 1
 
         # TODO realtime analysis
-        self.__freq = np.fft.fft(self.__stack, axis=0, norm='ortho')
+        if self.__rate % self.__stack_size == 0:
+            self.__freq = np.fft.fft(self.__stack, axis=0, norm='ortho')
+            freq = np.real(self.__freq)[:self.__stack_size//2+1, :]
 
-        for i, line in enumerate(self.lines):
-            line.set_xdata(np.arange(self.__stack_size))
-            line.set_ydata(self.__freq[:, i])
-        plt.tight_layout()
-        self.fig.canvas.draw()
+            self.axes[0].clear()
+            self.axes[1].clear()
+
+            self.axes[0].plot(self.__stack)
+            self.axes[1].plot(freq[1:, :])
+            plt.pause(0.5)
 
 
     def append_stack(self, item):
