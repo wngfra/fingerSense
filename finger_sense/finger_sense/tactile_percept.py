@@ -1,6 +1,5 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
-import cv2
 
 import numpy as np
 import rclpy
@@ -17,7 +16,7 @@ class TactilePercept(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('stack_size', 65)
+                ('stack_size', 64)
             ]
         )
 
@@ -27,8 +26,8 @@ class TactilePercept(Node):
             'stack_size').get_parameter_value().integer_value
         self.__stack_count = 0
 
-        self.__stack = np.zeros((self.__stack_size, 16))
-        self.__freq = self.__stack
+        self.__stack = np.zeros((self.__stack_size, 16), dtype=np.float32)
+        self.__buffer = np.zeros((self.__stack_size, 16), dtype=np.float32)
 
         self.__subscription = self.create_subscription(
             TactileSignal, '/tactile_signals', self.percept_callback, 10)
@@ -38,13 +37,15 @@ class TactilePercept(Node):
         self.append_stack(new_data)
         self.__rate += 1
 
-        # TODO realtime analysis
         if self.__rate % self.__stack_size == 0:
-            self.__freq = np.fft.fft(self.__stack, axis=0, norm='ortho')
-            freq = np.real(self.__freq)[:self.__stack_size//2+1, :]
-            imag = np.stack([np.real(freq), np.imag(freq)])
-            cv2.imshow('frequency', imag)
-            cv2.waitKey(0)
+            f1 = np.fft.fft(self.__stack, axis=0, norm='ortho')
+            f1 /= np.
+            
+            dist = np.linalg.norm(f1 - self.__buffer)
+
+            self.__buffer = f1
+
+            print(dist)
 
     def append_stack(self, item):
         if self.__stack_count < self.__stack_size:

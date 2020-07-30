@@ -7,6 +7,8 @@ FROM $FROM_IMAGE
 # install packages
 RUN apt-get update && apt-get install -q -y \
     build-essential \
+    libcanberra-gtk-module \
+    libcanberra-gtk3-module \
     libeigen3-dev \
     libpoco-dev \
     python3-dev \
