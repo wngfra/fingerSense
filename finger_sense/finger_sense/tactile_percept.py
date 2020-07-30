@@ -1,15 +1,12 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
-
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+import cv2
 
 import numpy as np
 import rclpy
 from rclpy.node import Node
 
 from tactile_msgs.msg import TactileSignal
-
 
 
 class TactilePercept(Node):
@@ -20,7 +17,7 @@ class TactilePercept(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('stack_size', 129)
+                ('stack_size', 65)
             ]
         )
 
@@ -36,8 +33,6 @@ class TactilePercept(Node):
         self.__subscription = self.create_subscription(
             TactileSignal, '/tactile_signals', self.percept_callback, 10)
 
-        self.fig, self.axes = plt.subplots(2, 1)
-
     def percept_callback(self, msg):
         new_data = msg.data
         self.append_stack(new_data)
@@ -47,14 +42,9 @@ class TactilePercept(Node):
         if self.__rate % self.__stack_size == 0:
             self.__freq = np.fft.fft(self.__stack, axis=0, norm='ortho')
             freq = np.real(self.__freq)[:self.__stack_size//2+1, :]
-
-            self.axes[0].clear()
-            self.axes[1].clear()
-
-            self.axes[0].plot(self.__stack)
-            self.axes[1].plot(freq[1:, :])
-            plt.pause(0.5)
-
+            imag = np.stack([np.real(freq), np.imag(freq)])
+            cv2.imshow('frequency', imag)
+            cv2.waitKey(0)
 
     def append_stack(self, item):
         if self.__stack_count < self.__stack_size:

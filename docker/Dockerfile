@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -q -y \
     build-essential \
     libeigen3-dev \
     libpoco-dev \
+    python3-dev \
+    python3-matplotlib \
+    python3-opencv \
     python3-pip \
     python3-tk \
     vim \
