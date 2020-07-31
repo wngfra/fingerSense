@@ -32,11 +32,12 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
+RUN rm -rf /usr/src/libfranka/build
+
 # Create a sudo user
 RUN useradd -rm -d /home/ubuntu -s /bin/bash -u 1000 ubuntu
 USER ubuntu
 WORKDIR /home/ubuntu
-RUN rm -rf /usr/src/libfranka/build
 
 # ROS2 & CMake configurations
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc \
