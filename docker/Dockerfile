@@ -7,6 +7,7 @@ FROM $FROM_IMAGE
 # install packages
 RUN apt-get update && apt-get install -q -y \
     build-essential \
+    iputils-ping \
     libcanberra-gtk-module \
     libcanberra-gtk3-module \
     libeigen3-dev \
@@ -31,7 +32,10 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
-WORKDIR /mnt/ros2_ws
+# Create a sudo user
+RUN useradd -rm -d /home/ubuntu -s /bin/bash -u 1000 ubuntu
+USER ubuntu
+WORKDIR /home/ubuntu
 RUN rm -rf /usr/src/libfranka/build
 
 # ROS2 & CMake configurations
