@@ -90,7 +90,10 @@ int main(int argc, char **argv)
         MotionGenerator motion_generator(0.5, q_goal);
         robot.control(motion_generator);
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished moving to initial joint configuration.\nPress Enter to continue...");
-        std::cin.ignore();
+        if (std::cin.get() != '\n')
+        {
+            throw franka::Exception("Terminated by users");
+        }
 
         /*************************
         // REVIEW: Approach the horizontal plane
@@ -110,7 +113,7 @@ int main(int argc, char **argv)
 
         franka::RobotState initial_state = robot.readOnce();
         auto desired_pose = initial_state.O_T_EE;
-        auto max_x = desired_pose[12] + 0.03;
+        auto max_x = desired_pose[12] + 0.07;
 
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)> cartesian_impedance_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
@@ -160,7 +163,7 @@ int main(int argc, char **argv)
             std::array<double, 7> tau_d_array{};
             Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-            if (tactileValue >= 10)
+            if (tactileValue >= 5)
             {
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down example");
                 franka::Torques torques(tau_d_array);
@@ -178,46 +181,87 @@ int main(int argc, char **argv)
         // start real-time control loop
         robot.control(cartesian_impedance_control_callback);
 
+        RCLCPP_INFO(rclcpp::get_logger("libfranka"), "Touched the platform!");
+
         /***********************
          * Sliding motion
          **********************/
-        double time = 0.0;
-        std::array<double, 16> initial_pose;
 
         // parameters
-        constexpr double desired_value{10.0};
-        constexpr double k_p{0.01};          // NOLINT(readability-identifier-naming)
-        constexpr double k_i{0.02};          // NOLINT(readability-identifier-naming)
-        constexpr double filter_gain{0.001}; // NOLI    NT(readability-identifier-naming)
+        translational_stiffness = 300.0;
+        rotational_stiffness = 30.0;
+        stiffness.setZero();
+        stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+        stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
+        damping.setZero();
+        damping.topLeftCorner(3, 3) << 4.0 * sqrt(translational_stiffness) *
+                                           Eigen::MatrixXd::Identity(3, 3);
+        damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness) *
+                                               Eigen::MatrixXd::Identity(3, 3);
 
-        double error_integral{0.0}, error{0.0};
-
-        // define callback for the force control loop
+        // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)> force_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-            error = desired_value - tactileValue;
-            error_integral += error * period.toSec();
+            desired_pose = robot_state.O_T_EE_c;
 
-            Eigen::VectorXd desired_force_torque(6), tau_cmd(7);
-            desired_force_torque.setZero();
-            desired_force_torque(2) = -(k_p * error + k_i * error_integral);
+            // equilibrium point is changing
+            Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
+            Eigen::Vector3d position_d(initial_transform.translation());
+            Eigen::Quaterniond orientation_d(initial_transform.linear());
 
-            std::array<double, 7> gravity_array = model.gravity(robot_state);
-            std::array<double, 42> jacobian_array = model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
+            // get state variables
+            std::array<double, 7> coriolis_array = model.coriolis(robot_state);
+            std::array<double, 42> jacobian_array =
+                model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
 
-            Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
+            // convert to Eigen
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
             Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-            Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_j_d(robot_state.tau_J_d.data());
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+            Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+            Eigen::Vector3d position(transform.translation());
+            Eigen::Quaterniond orientation(transform.linear());
 
-            tau_cmd << jacobian.transpose() * desired_force_torque + tau_j_d - gravity;
-            std::array<double, 7> tau_d_array;
-            Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
+            // compute error to desired equilibrium pose
+            // position error
+            Eigen::Matrix<double, 6, 1> error;
+            error.head(3) << position - position_d;
+
+            // orientation error
+            // "difference" quaternion
+            if (orientation_d.coeffs().dot(orientation.coeffs()) < 0.0)
+            {
+                orientation.coeffs() << -orientation.coeffs();
+            }
+            // "difference" quaternion
+            Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d);
+            error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+            // Transform to base frame
+            error.tail(3) << -transform.linear() * error.tail(3);
+
+            // compute control
+            Eigen::VectorXd tau_task(7), tau_d(7);
+
+            // Spring damper system with damping ratio=1
+            tau_task << jacobian.transpose() * (-stiffness * error - damping * (jacobian * dq));
+            tau_d << tau_task + coriolis;
+
+            std::array<double, 7> tau_d_array{};
+            Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+
+            if (tactileValue < 5)
+            {
+                desired_pose[14] -= 0.0001;
+            }
+
             return tau_d_array;
         };
 
         // define callback for the sliding control loop
+        double time = 0.0;
+        std::array<double, 16> initial_pose;
 
-        std::function<franka::CartesianPose(const franka::RobotState &, franka::Duration)> cartesian_control_callback = [&](const franka::RobotState &robot_state,
-                                                                                                                            franka::Duration period) -> franka::CartesianPose {
+        std::function<franka::CartesianPose(const franka::RobotState &, franka::Duration)> cartesian_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianPose {
             time += period.toSec();
 
             if (time == 0.0)
@@ -241,6 +285,8 @@ int main(int argc, char **argv)
             return new_pose;
         };
         robot.control(force_control_callback, cartesian_control_callback);
+
+        robot.control(motion_generator);
     }
     catch (const franka::Exception &e)
     {

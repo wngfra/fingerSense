@@ -8,11 +8,11 @@
 
 namespace franka_control
 {
-    class ControllerInterface
+    class ROS2Interface
     {
     public:
-        ControllerInterface();
-        ~ControllerInterface();
+        ROS2Interface();
+        ~ROS2Interface();
 
     private:
         // Client to change tactile_publisher node state

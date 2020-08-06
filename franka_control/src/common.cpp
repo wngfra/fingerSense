@@ -25,25 +25,23 @@ franka::RealtimeConfig getRealtimeConfig()
         printf("Setting non-realtime config.\n");
         return franka::RealtimeConfig::kIgnore;
       }
-      else
-      {
-        printf("Setting realtime config.\n");
-        return franka::RealtimeConfig::kEnforce;
-      }
     }
     catch (const std::exception &e)
     {
       std::cerr << e.what() << std::endl;
     }
   }
+
+  printf("Setting realtime config.\n");
+  return franka::RealtimeConfig::kEnforce;
 }
 
 void setDefaultBehavior(franka::Robot &robot)
 {
-  robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                             {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                             {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
-                             {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}});
+  robot.setCollisionBehavior({{50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0}},
+                             {{50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0}},
+                             {{50.0, 50.0, 50.0, 50.0, 50.0, 50.0}},
+                             {{50.0, 50.0, 50.0, 50.0, 50.0, 50.0}});
   robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
   robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
 }

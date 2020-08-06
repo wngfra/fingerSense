@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'tactile_percept = finger_sense.tactile_percept:main'
+            'perception = finger_sense.perception:main'
         ],
     },
 )
