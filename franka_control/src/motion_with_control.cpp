@@ -249,11 +249,6 @@ int main(int argc, char **argv)
             std::array<double, 7> tau_d_array{};
             Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-            if (tactileValue < 5)
-            {
-                desired_pose[14] -= 0.0001;
-            }
-
             return tau_d_array;
         };
 
