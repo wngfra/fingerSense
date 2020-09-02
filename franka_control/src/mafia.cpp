@@ -40,19 +40,15 @@ using namespace std::chrono_literals;
 
 int main(int argc, char **argv)
 {
-
-    if (argc != 2)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Usage: %s <robot-hostname>", argv[0]);
-        return -1;
-    }
-
+    std::string robot_ip;
     // Prepare a buffer to update tactile signals
     float tactileValue = 0.0;
 
     // ROS2 initialization
     rclcpp::init(argc, argv);
     auto nh = std::make_shared<TactileUpdater>(&tactileValue);
+    nh->declare_parameter<std::string>("robot_ip", "172.16.0.2");
+    nh->get_parameter("robot_ip", robot_ip);
 
     // Setup client for ChangeState service
     auto client_node = rclcpp::Node::make_shared("change_state_client");
@@ -61,7 +57,7 @@ int main(int argc, char **argv)
     request->transition = 1;
 
     // Wait 1s for calibration to finish
-    std::this_thread::sleep_for(1s);
+    std::this_thread::sleep_for(3s);
 
     auto result = client->async_send_request(request);
     // Wait for the result.
@@ -78,7 +74,7 @@ int main(int argc, char **argv)
 
     // Controllers
     bool has_error = false;
-    franka::Robot robot(argv[1], getRealtimeConfig());
+    franka::Robot robot(robot_ip, getRealtimeConfig());
     franka::Model model = robot.loadModel();
 
     try
@@ -279,7 +275,7 @@ int main(int argc, char **argv)
             }
             return new_pose;
         };
-        robot.control(force_control_callback, cartesian_control_callback);
+        // robot.control(force_control_callback, cartesian_control_callback);
 
         robot.control(motion_generator);
     }
@@ -301,6 +297,15 @@ int main(int argc, char **argv)
         {
             RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "%s\nAutomatic error recovery failed!", e.what());
         }
+    }
+
+    request->transition = 99;
+    result = client->async_send_request(request);
+    // Wait for the result.
+    if (rclcpp::spin_until_future_complete(client_node, result) ==
+        rclcpp::FutureReturnCode::SUCCESS)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Service call successful!");
     }
 
     // ROS2 shutdown
