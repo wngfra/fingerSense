@@ -21,6 +21,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
+find_package(franka_msgs REQUIRED)
 find_package(tactile_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -46,6 +47,7 @@ add_library(tactile_updater STATIC
 )
 
 ament_target_dependencies(tactile_updater
+  "franka_msgs"
   "tactile_msgs"
   "rclcpp"
 )
@@ -63,13 +65,14 @@ foreach(target ${APPS})
     Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
+    "franka_msgs"
     "tactile_msgs"
     "rclcpp")
   install(TARGETS ${target}
     DESTINATION lib/${PROJECT_NAME})
 endforeach()
 
-# Install launch files.
+# Install launch files
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/

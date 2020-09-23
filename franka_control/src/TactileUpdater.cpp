@@ -1,15 +1,8 @@
 // Copyright (c) 2020 wngfra
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
-
-#include <array>
-
-#include <rclcpp/rclcpp.hpp>
-
-#include "tactile_msgs/msg/tactile_signal.hpp"
-
 #include "franka_control/TactileUpdater.h"
 
-void TactileUpdater::subscription_callback(const tactile_msgs::msg::TactileSignal::SharedPtr msg) const
+void TactileUpdater::tactile_callback(const tactile_msgs::msg::TactileSignal::SharedPtr msg) const
 {
     // Computes the average tactile response
     auto buffer = msg->data;
@@ -18,4 +11,10 @@ void TactileUpdater::subscription_callback(const tactile_msgs::msg::TactileSigna
     });
 
     *reduced_average_ = reduced_average;
+}
+
+void TactileUpdater::sliding_callback(const franka_msgs::msg::SlidingControl::SharedPtr msg) const
+{
+    *sliding_control_ = msg->pressure;
+    *(sliding_control_ + 1) = msg->speed;
 }

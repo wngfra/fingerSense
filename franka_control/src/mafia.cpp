@@ -43,10 +43,11 @@ int main(int argc, char **argv)
     std::string robot_ip;
     // Prepare a buffer to update tactile signals
     float tactileValue = 0.0;
+    float sliding_control[2] = {0.0, 0.0};
 
     // ROS2 initialization
     rclcpp::init(argc, argv);
-    auto nh = std::make_shared<TactileUpdater>(&tactileValue);
+    auto nh = std::make_shared<TactileUpdater>(&tactileValue, sliding_control);
     nh->declare_parameter<std::string>("robot_ip", "172.16.0.2");
     nh->get_parameter("robot_ip", robot_ip);
 
