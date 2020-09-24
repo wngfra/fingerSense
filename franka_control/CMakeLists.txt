@@ -59,6 +59,7 @@ ament_target_dependencies(tactile_updater
 # Build apps
 set(APPS
   mafia
+  offline
 )
 
 foreach(target ${APPS})
