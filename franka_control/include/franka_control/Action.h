@@ -7,27 +7,25 @@
 #include <tuple>
 #include <vector>
 
+#include <Eigen/Dense>
+
 namespace franka_control
 {
     class Action
     {
-    struct ActionBound
-    {
-        std::tuple<double, double> x, y, z;
-        ActionBound(double x_min, double x_max, double y_min, double y_max, double z_min, double z_max) {
-            x = std::make_tuple(x_min, x_max);
-            y = std::make_tuple(y_min, y_max);
-            z = std::make_tuple(z_min, z_max);
-        }
-    };
-
     public:
-        Action(ActionBound);
-        bool add_basis(std::function<const double&>);
-        bool add_basis(std::vector<std::function<const double&(const double&)>>);
-        const std::array<double, 6> operator()();
+        Action(const Eigen::MatrixXd &);
+        bool addBases(std::function<double(const double &)>, const Eigen::VectorXd &);
+        bool addBases(std::vector<std::function<double(const double &)>>, const Eigen::MatrixXd &);
+        Eigen::MatrixXd getWeights() const;
+        bool setWeights(const Eigen::MatrixXd &);
+        bool updateWeights(const Eigen::MatrixXd &);
+        std::array<double, 6> operator()(const double &) const;
+
     private:
-        ActionBound bound;
-        std::vector<std::function<const double&(const double&)>> bases;
+        Eigen::MatrixXd bound_;
+        Eigen::MatrixXd weights_;
+
+        std::vector<std::function<double(const double &)>> bases_;
     };
 } // namespace franka_control

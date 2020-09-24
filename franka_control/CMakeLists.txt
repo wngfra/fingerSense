@@ -34,14 +34,18 @@ include_directories(
   include
 )
 
-# franka control commons
+# add franka libraries
+add_library(action STATIC
+  src/Action.cpp
+)
 add_library(common STATIC
   src/common.cpp
 )
 
+target_link_libraries(action PUBLIC Eigen3::Eigen3)
 target_link_libraries(common PUBLIC Franka::Franka Eigen3::Eigen3)
 
-# ROS2 tactile_listener node 
+# add ROS2 libraries 
 add_library(tactile_updater STATIC
   src/TactileUpdater.cpp
 )
@@ -59,7 +63,8 @@ set(APPS
 
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
-  target_link_libraries(${target}     
+  target_link_libraries(${target}
+    action  
     common
     tactile_updater
     Threads::Threads
