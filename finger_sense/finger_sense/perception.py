@@ -29,29 +29,20 @@ class Perception(Node):
         self.__subscription = self.create_subscription(
             TactileSignal,
             '/tactile_signals',
-            self.percept_callback,
+            self.perception_callback,
             10
         )
 
         self.fig = plt.figure()
 
-    def percept_callback(self, msg):
-        x = np.copy(self.__x)
+    def perception_callback(self, msg):
         self.append_data(msg.data)
 
-        dx = self.__x - x
-        dx = (dx + 10.0) / 500.0 * 255.0
-        x = (x + 10.0) / 500.0 * 255.0
-
-        if self.__count >= self.__size:
-            plt.subplot(1,2,1)
-            plt.imshow(x)
-            plt.subplot(1,2,2)
-            plt.imshow(dx)
-            plt.pause(0.03)
-            plt.clf()
-
     def append_data(self, item):
+        '''
+            Append new data to stack.
+            If the stack is full, pop out the first item.
+        '''
         if self.__count < self.__size:
             self.__x[self.__count, :] = item
         else:
