@@ -11,21 +11,10 @@
 #include <numeric>
 #include <stdlib.h>
 #include <string>
-#include <thread>
 
 #include <Eigen/Dense>
 
-#include <franka/duration.h>
-#include <franka/exception.h>
-#include <franka/model.h>
-#include <franka/robot.h>
-
-#include <rclcpp/rclcpp.hpp>
-
 #include "franka_control/Action.h"
-#include "tactile_msgs/srv/change_state.hpp"
-#include "franka_control/common.h"
-#include "franka_control/TactileUpdater.h"
 
 using namespace std::chrono_literals;
 
@@ -43,7 +32,15 @@ int main(int argc, char **argv)
 {
 
     int n = 10;
-    Eigen::MatrixXd bound;
+    Eigen::MatrixXd bound(6, 2);
+
+    bound << -0.1, 0.1,
+        0.0, 0.5,
+        -0.2, 0.2,
+        -M_PI_4 / 2.0, M_PI_4 / 2.0,
+        -M_PI_4 / 2.0, M_PI_4 / 2.0,
+        -M_PI_4 / 2.0, M_PI_4 / 2.0;
+
     Eigen::MatrixXd weights(6, n);
     std::vector<std::function<double(const double &)>> bases;
     franka_control::Action action(bound);
@@ -58,9 +55,14 @@ int main(int argc, char **argv)
 
     bool res = action.addBases(bases, weights);
     std::string title = "Action";
-    
-    for (int i = 0; i < 1000; ++i){
-        auto values = action((double)i * 0.01);
+
+    std::cout << "weight: \n"
+              << weights;
+
+    for (int i = 0; i < 10; ++i)
+    {
+        double t = 0.1 * (double)i;
+        auto values = action(t);
         print(values, title);
     }
 

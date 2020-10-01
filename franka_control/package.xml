@@ -14,6 +14,7 @@
   <build_depend>tactile_msgs</build_depend>
 
   <depend>rclcpp</depend>
+  <exec_depend>can_wifi</exec_depend>
   <exec_depend>franka_msgs</exec_depend>
   <exec_depend>tactile_msgs</exec_depend>
 

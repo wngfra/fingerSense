@@ -1,7 +1,7 @@
 // Copyright (c) 2020 wngfra
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 #include <stdio.h>
-
+#include <iostream>
 #include "franka_control/Action.h"
 
 namespace franka_control
@@ -11,10 +11,11 @@ namespace franka_control
         if (bound.cols() == 2 && bound.rows() == 6)
         {
             bound_ = bound;
+            is_bounded = true;
         }
         else
         {
-            printf("Incorrect action bound size! Unbounded action is enabled.\n");
+            is_bounded = false;
         }
     }
 
@@ -53,6 +54,11 @@ namespace franka_control
     Eigen::MatrixXd Action::getWeights() const
     {
         return weights_;
+    }
+
+    bool Action::isBounded() const
+    {
+        return is_bounded;
     }
 
     bool Action::setWeights(const Eigen::MatrixXd &w)
@@ -95,7 +101,7 @@ namespace franka_control
 
             composite_action = weights_ * values;
 
-            if (bound_.size() > 0)
+            if (is_bounded)
             {
                 for (int j = 0; j < 6; ++j)
                 {

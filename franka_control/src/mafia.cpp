@@ -31,13 +31,8 @@ using namespace std::chrono_literals;
 
 int main(int argc, char **argv)
 {
-    float tactileValue = 0.0;
-
     // ROS2 initialization
     rclcpp::init(argc, argv);
-    auto nh = std::make_shared<TactileUpdater>(&tactileValue, sliding_control);
-    nh->declare_parameter<std::string>("robot_ip", "172.16.0.2");
-    nh->get_parameter("robot_ip", robot_ip);
 
     // Setup client for ChangeState service
     auto client_node = rclcpp::Node::make_shared("change_state_client");
@@ -47,23 +42,16 @@ int main(int argc, char **argv)
 
     // Wait 3s for calibration to finish
     std::this_thread::sleep_for(3s);
-
-    auto result = client->async_send_request(request);
-    // Wait for service call result
-    if (rclcpp::spin_until_future_complete(client_node, result) ==
+    // Start recoding data
+    if (rclcpp::spin_until_future_complete(client_node, client->async_send_request(request)) ==
         rclcpp::FutureReturnCode::SUCCESS)
     {
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Service call successful!");
     }
 
-    // Spin node asynchronously
-    std::thread threaded_executor([&]() {
-        rclcpp::spin(nh);
-    });
-
     // Set robot controllers
-    std::string robot_ip;
     bool has_error = false;
+    std::string robot_ip = "172.16.0.2";
 
     franka::Robot robot(robot_ip, getRealtimeConfig());
     franka::Model model = robot.loadModel();
@@ -76,11 +64,39 @@ int main(int argc, char **argv)
         std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
         MotionGenerator motion_generator(0.5, q_goal);
         robot.control(motion_generator);
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Press Enter to continue...");
-        if (std::cin.get() != '\n')
+
+        /*
+         * Control loop
+         * REVIEW: composite action
+         * TODO: action gradient
+         */
+        // Set up action bases
+        int n = 31;
+        Eigen::MatrixXd bound(6, 2);
+        bound << -0.001,          0.001,
+                 -0.001,          0.001,
+                 -0.001,          0.001,
+                 -M_PI_4 / 100, M_PI_4 / 100,
+                 -M_PI_4 / 100, M_PI_4 / 100,
+                 -M_PI_4 / 100, M_PI_4 / 100;
+        Eigen::MatrixXd weights(6, n);
+        std::vector<std::function<double(const double &)>> bases;
+        franka_control::Action action(bound);
+
+        for (int i = 0; i < n; ++i)
         {
-            throw franka::Exception("Terminated by users.");
+            double omega = (i + 1) / 2;
+            double coeff = (i + 1) % 2;
+
+            weights.col(i) << Eigen::VectorXd::Random(6) * 1e-5;
+            bases.push_back([&](const double &t) -> double {
+                return (1.0 - coeff) * sin(omega * 10 * M_PI * t) + coeff * cos(omega * 10 * M_PI * t);
+            });
         }
+        
+
+        bool res = action.addBases(bases, weights);
+        auto generated_pos = action(0.0);
 
         // Compliance parameters
         double translational_stiffness{150.0};
@@ -97,10 +113,12 @@ int main(int argc, char **argv)
 
         franka::RobotState initial_state = robot.readOnce();
         auto desired_pose = initial_state.O_T_EE;
-        auto max_x = desired_pose[12] + 0.07;
 
+        double time = 0.0;
         // define callback for the torque control loop
         std::function<franka::Torques(const franka::RobotState &, franka::Duration)> cartesian_impedance_control_callback = [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+            time += period.toSec();
+
             // equilibrium point is moving down
             Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(desired_pose.data()));
             Eigen::Vector3d position_d(initial_transform.translation());
@@ -147,22 +165,24 @@ int main(int argc, char **argv)
             std::array<double, 7> tau_d_array{};
             Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-            if (tactileValue >= 5)
+            if (time >= 30.0)
             {
-                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down example");
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished motion, shutting down controller");
                 franka::Torques torques(tau_d_array);
                 return franka::MotionFinished(torques);
             }
 
-            desired_pose[14] -= 0.0001;
-            if (desired_pose[12] <= max_x)
-            {
-                desired_pose[12] += 0.0001;
-            }
+            generated_pos = action(time);
+            desired_pose[12] += generated_pos[0];
+            desired_pose[13] += generated_pos[1];
+            desired_pose[14] += generated_pos[2];
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "dx: %f", generated_pos[0]);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "dy: %f", generated_pos[1]);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "dz: %f", generated_pos[2]);
 
             return tau_d_array;
         };
-        
+
         // start real-time control loop
         robot.control(cartesian_impedance_control_callback);
 
@@ -193,9 +213,7 @@ int main(int argc, char **argv)
 
     // Shutdown tactile signal publisher node
     request->transition = 99;
-    result = client->async_send_request(request);
-    // Wait for the result.
-    if (rclcpp::spin_until_future_complete(client_node, result) ==
+    if (rclcpp::spin_until_future_complete(client_node, client->async_send_request(request)) ==
         rclcpp::FutureReturnCode::SUCCESS)
     {
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Service call successful!");
@@ -203,7 +221,6 @@ int main(int argc, char **argv)
 
     // ROS2 shutdown
     rclcpp::shutdown();
-    threaded_executor.join();
 
     return 0;
 }

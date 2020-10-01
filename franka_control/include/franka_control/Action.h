@@ -18,11 +18,14 @@ namespace franka_control
         bool addBases(std::function<double(const double &)>, const Eigen::VectorXd &);
         bool addBases(std::vector<std::function<double(const double &)>>, const Eigen::MatrixXd &);
         Eigen::MatrixXd getWeights() const;
+        bool isBounded() const;
         bool setWeights(const Eigen::MatrixXd &);
         bool updateWeights(const Eigen::MatrixXd &);
         std::array<double, 6> operator()(const double &) const;
 
     private:
+        bool is_bounded;
+
         Eigen::MatrixXd bound_;
         Eigen::MatrixXd weights_;
 
