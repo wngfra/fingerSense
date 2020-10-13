@@ -13,5 +13,4 @@
 ## Docker/Podman
 1. `Dockerfile` is provided for development/deployment in containers
 2. Alternatively, pull images `wngfra/ros2franka` from [dockerhub](https://hub.docker.com/)
-3. For OCI runtime, create a local development container with `podman run -it --name <container-name> --net=host -p <wifi-local-ip>:10240:10240 wngfra/ros2franka:latest`(add `-v /tmp/.X11-unix:/tmp/.X11-unix --env DISPLAY --device /dev/dri --privileged` for GUI support to use `rqt`, `rviz`, etc.)
-4. Default workdir `/mnt/ros2_ws`
+3. `run_container.sh <container-name>` helps to run a development container with X11 forwarding, host-net support, username `ubuntu` at the default workdir `/mnt/ros2_ws`
