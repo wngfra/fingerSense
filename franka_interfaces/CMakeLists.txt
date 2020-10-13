@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(franka_msgs)
+project(franka_interfaces)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -21,12 +21,16 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 set(msg_files
-  "msg/SlidingControl.msg"
   "msg/RobotState.msg"
+)
+
+set(srv_files
+  "srv/ChangeSlidingParameter.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  ${srv_files}
   DEPENDENCIES std_msgs
 )
 

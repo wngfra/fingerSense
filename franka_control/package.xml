@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>franka_control</name>
-  <version>0.3.0</version>
+  <version>1.0.0</version>
   <description>Tactile-based hybrid control interface</description>
   <maintainer email="wngfra@gmail.com">wngfra</maintainer>
   <license>Apache License 2</license>
@@ -10,13 +10,13 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>rclpy</build_depend>
-  <build_depend>franka_msgs</build_depend>
-  <build_depend>tactile_msgs</build_depend>
+  <build_depend>franka_interfaces</build_depend>
+  <build_depend>tactile_interfaces</build_depend>
 
   <depend>rclcpp</depend>
   <exec_depend>can_wifi</exec_depend>
-  <exec_depend>franka_msgs</exec_depend>
-  <exec_depend>tactile_msgs</exec_depend>
+  <exec_depend>franka_interfaces</exec_depend>
+  <exec_depend>tactile_interfaces</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

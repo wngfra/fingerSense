@@ -6,7 +6,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from tactile_msgs.msg import TactileSignal
+from tactile_interfaces.msg import TactileSignal
 
 
 class Perception(Node):

@@ -21,8 +21,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
-find_package(franka_msgs REQUIRED)
-find_package(tactile_msgs REQUIRED)
+find_package(franka_interfaces REQUIRED)
+find_package(tactile_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.8.0 REQUIRED)
@@ -35,44 +35,52 @@ include_directories(
 )
 
 # add franka libraries
-add_library(action STATIC
-  src/Action.cpp
-)
 add_library(common STATIC
   src/common.cpp
 )
 
-target_link_libraries(action PUBLIC Eigen3::Eigen3)
-target_link_libraries(common PUBLIC Franka::Franka Eigen3::Eigen3)
-
-# add ROS2 libraries 
-add_library(tactile_updater STATIC
-  src/TactileUpdater.cpp
+add_library(sliding_control STATIC
+  src/SlidingControl.cpp
 )
 
-ament_target_dependencies(tactile_updater
-  "franka_msgs"
-  "tactile_msgs"
+target_link_libraries(common PUBLIC Franka::Franka Eigen3::Eigen3)
+
+target_link_libraries(sliding_control PUBLIC Franka::Franka)
+
+# add ROS2 libraries 
+add_library(node_state_manager STATIC
+  src/NodeStateManager.cpp
+)
+
+add_library(sliding_parameter_server STATIC
+  src/SlidingParameterServer.cpp
+)
+
+ament_target_dependencies(node_state_manager
+  "tactile_interfaces"
+  "rclcpp"
+)
+
+ament_target_dependencies(sliding_parameter_server
+  "franka_interfaces"
   "rclcpp"
 )
 
 # Build apps
 set(APPS
   mafia
-  offline
 )
 
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target}
-    action  
     common
-    tactile_updater
-    Threads::Threads
+    node_state_manager
+    sliding_control
+    sliding_parameter_server
+    # Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
-    "franka_msgs"
-    "tactile_msgs"
     "rclcpp")
   install(TARGETS ${target}
     DESTINATION lib/${PROJECT_NAME})
