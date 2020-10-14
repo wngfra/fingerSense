@@ -4,7 +4,7 @@ package_name = 'finger_sense'
 
 setup(
     name=package_name,
-    version='0.1.0',
+    version='0.2.0',
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'perception = finger_sense.perception:main'
+            'perception_agent = finger_sense.perception_agent:main'
         ],
     },
 )

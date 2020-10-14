@@ -78,7 +78,7 @@ foreach(target ${APPS})
     node_state_manager
     sliding_control
     sliding_parameter_server
-    # Threads::Threads
+    Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
     "rclcpp")

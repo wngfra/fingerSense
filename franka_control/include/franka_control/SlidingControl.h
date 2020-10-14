@@ -14,10 +14,10 @@ namespace franka_control
         // ~SlidingControl();
 
         franka::CartesianVelocities operator()(const franka::RobotState&, franka::Duration);
-        void set_parameter(const double, const double, const double, const int);
+        void set_parameter(const double, const double, const int);
 
     private:
-        double x_max_, z_max_, v_x_max_, accel_x_;
+        double x_max_, v_x_max_, accel_x_;
         double accel_time_, const_v_time_;
         double omega_;
         int cycle_max_;

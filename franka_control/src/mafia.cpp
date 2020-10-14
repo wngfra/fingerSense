@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdlib.h>
 #include <string>
+#include <thread>
 
 #include <franka/exception.h>
 #include <franka/robot.h>
@@ -13,18 +14,30 @@
 
 #include "franka_control/common.h"
 #include "franka_control/SlidingControl.h"
+#include "franka_control/SlidingParameterServer.h"
 #include "franka_control/NodeStateManager.h"
 
 using namespace std::chrono_literals;
 
 int main(int argc, char **argv)
 {
+    double *distance = new double(0.0);
+    double *pressure = new double(0.0);
+    double *speed = new double(0.0);
+
     // ROS2 initialization
     rclcpp::init(argc, argv);
     auto node_state_manager = franka_control::NodeStateManager("tactile_publisher_manager", "/tactile_publisher/change_state");
+    auto server_handler = std::make_shared<franka_control::SlidingParameterServer>(distance, pressure, speed);
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(server_handler);
+    std::thread thread([&]() {
+        executor.spin();
+    });
 
     // Start recoding data
     auto res = node_state_manager.change_state(1, 3s);
+    std::this_thread::sleep_for(2s);
 
     // Set robot controllers
     bool has_error = false;
@@ -41,17 +54,16 @@ int main(int argc, char **argv)
         MotionGenerator motion_generator(0.5, q_goal);
         robot.control(motion_generator);
 
-        double x_max = 0.3;
-        double z_max = 0.001;
-        double v_x_max = 0.08;
-        int cycle_max = 1;
+        const int cycle_max = 1;
 
         franka_control::SlidingControl sliding_controller;
-        sliding_controller.set_parameter(x_max, z_max, v_x_max, cycle_max);
 
-        // start
-        robot.control(sliding_controller);
-        //end
+        while (*speed > 0.0)
+        {
+            RCLCPP_INFO(server_handler->get_logger(), "distance: %f, pressure: %f, speed: %f", *distance, *pressure, *speed);
+            sliding_controller.set_parameter(*distance, *speed, 1);
+            robot.control(sliding_controller);
+        }
 
         robot.control(motion_generator);
     }
@@ -80,6 +92,9 @@ int main(int argc, char **argv)
     res = node_state_manager.change_state(99, 0ns);
 
     // ROS2 shutdown
+    if (thread.joinable()) {
+        thread.join();
+    }
     rclcpp::shutdown();
 
     return 0;

@@ -13,4 +13,4 @@
 ## Docker/Podman
 1. `Dockerfile` is provided for development/deployment in containers
 2. Alternatively, pull images `wngfra/ros2franka` from [dockerhub](https://hub.docker.com/)
-3. `run_container.sh <container-name>` helps to run a development container with X11 forwarding, host-net support, username `ubuntu` at the default workdir `/mnt/ros2_ws`
+3. `run_container.sh <container-name>` helps to run a development container with X11 forwarding, host-net support, username `ubuntu` at the default workdir `/home/ubuntu/ros2_ws`

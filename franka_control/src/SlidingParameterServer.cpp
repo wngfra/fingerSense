@@ -7,7 +7,7 @@ namespace franka_control
     void SlidingParameterServer::change_sliding_parameter(const std::shared_ptr<franka_interfaces::srv::ChangeSlidingParameter::Request> request, std::shared_ptr<franka_interfaces::srv::ChangeSlidingParameter::Response> response)
     {
         *distance_ = request->distance;
-        *dz_ = request->dz;
+        *pressure_ = request->pressure;
         *speed_ = request->speed;
 
         response->success = true;

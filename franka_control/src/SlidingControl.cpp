@@ -12,10 +12,9 @@ namespace franka_control
     SlidingControl::SlidingControl()
     {
         x_max_ = 0.0;
-        z_max_ = 0.0;
         v_x_max_ = 0.0;
 
-        set_parameter(0.0, 0.0, 0.0, 0);
+        set_parameter(0.0, 0.0, 0);
     }
 
     franka::CartesianVelocities SlidingControl::operator()(const franka::RobotState &robot_state, franka::Duration period)
@@ -23,7 +22,6 @@ namespace franka_control
         time_ += period.toSec();
 
         double v_x = 0.0;
-        double v_z = 0.0;
 
         if (time_ <= accel_time_)
         {
@@ -48,7 +46,7 @@ namespace franka_control
             v_x = v_x_max_ * std::sin(omega_ * t);
         }
 
-        franka::CartesianVelocities output = {{v_x, 0.0, v_z, 0.0, 0.0, 0.0}};
+        franka::CartesianVelocities output = {{v_x, 0.0, 0.0, 0.0, 0.0, 0.0}};
 
         if (time_ >= 2 * const_v_time_ + 4 * accel_time_)
         {
@@ -64,10 +62,9 @@ namespace franka_control
         return output;
     }
 
-    void SlidingControl::set_parameter(const double distance, const double dz, const double speed, const int cycle_max)
+    void SlidingControl::set_parameter(const double distance, const double speed, const int cycle_max)
     {
         x_max_ = distance;
-        z_max_ = dz;
         v_x_max_ = speed;
         cycle_max_ = cycle_max;
 
