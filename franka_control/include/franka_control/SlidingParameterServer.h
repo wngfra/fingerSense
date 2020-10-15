@@ -13,10 +13,10 @@ namespace franka_control
     class SlidingParameterServer : public rclcpp::Node
     {
     public:
-        SlidingParameterServer(double *distance, double *pressure, double *speed) : Node("sliding_parameter_server")
+        SlidingParameterServer(double *distance, double *force, double *speed) : Node("sliding_parameter_server")
         {
             distance_ = distance;
-            pressure_ = pressure;
+            force_ = force;
             speed_ = speed;
 
             service_ = this->create_service<franka_interfaces::srv::ChangeSlidingParameter>("change_sliding_parameter", std::bind(&SlidingParameterServer::change_sliding_parameter, this, std::placeholders::_1, std::placeholders::_2));
@@ -25,7 +25,7 @@ namespace franka_control
     private:
         void change_sliding_parameter(const std::shared_ptr<franka_interfaces::srv::ChangeSlidingParameter::Request>, std::shared_ptr<franka_interfaces::srv::ChangeSlidingParameter::Response>);
 
-        double *distance_, *pressure_, *speed_;
+        double *distance_, *force_, *speed_;
         rclcpp::Service<franka_interfaces::srv::ChangeSlidingParameter>::SharedPtr service_;
     };
 } // namespace franka_control

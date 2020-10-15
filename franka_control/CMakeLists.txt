@@ -43,9 +43,9 @@ add_library(sliding_control STATIC
   src/SlidingControl.cpp
 )
 
-target_link_libraries(common PUBLIC Franka::Franka Eigen3::Eigen3)
+target_link_libraries(common PUBLIC Eigen3::Eigen3 Franka::Franka)
 
-target_link_libraries(sliding_control PUBLIC Franka::Franka)
+target_link_libraries(sliding_control PUBLIC Eigen3::Eigen3 Franka::Franka)
 
 # add ROS2 libraries 
 add_library(node_state_manager STATIC

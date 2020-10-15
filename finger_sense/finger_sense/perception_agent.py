@@ -54,16 +54,17 @@ class PerceptionAgent(Node):
         self.count += 1
 
         if self.count % self.stack_size == 0:
-            self.send_request(0.0, 1.0, 0.3)
+            self.send_request(np.random.rand() * 0.1 + 0.05, 0.0, 0.3)
             try:
-                response = self.future.result()
-                self.get_logger().warn('Change sliding parameter service call succeded')
+                res = self.future.result()
+                if not res.success:
+                    self.get_logger().warn('Sliding parameters not changed')
             except Exception as e:
                 self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
-    def send_request(self, speed, pressure, distance=0.3):
+    def send_request(self, speed, force, distance=0.3):
         self.req.distance = distance
-        self.req.pressure = pressure
+        self.req.force = force
         self.req.speed = speed
         self.future = self.cli.call_async(self.req)
 
