@@ -58,28 +58,28 @@ int main(int argc, char **argv)
 
         franka_control::SlidingControl sliding_controller(model_ptr);
 
-        try
-        {
-            robot.control(
-                [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                    return sliding_controller.impedance_control_callback(robot_state, period);
-                });
-        }
-        catch (const franka::Exception &e)
-        {
-            robot.automaticErrorRecovery();
-            RCLCPP_WARN(rclcpp::get_logger("mafia"), "Attemped recovery from error: \n%s.", e.what());
-        }
+        robot.control(
+            [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                return sliding_controller.touch_control_callback(robot_state, period);
+            });
 
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
+        
+        sliding_controller.set_stiffness({{3000, 3000, 1000, 100, 100, 100}});
 
         while (*speed > 0.0)
         {
             RCLCPP_INFO(server_handler->get_logger(), "distance: %f, force: %f, speed: %f", *distance, *force, *speed);
-            sliding_controller.set_parameter(*distance, *force, *speed, 1);
+            sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1);
             try
             {
-                robot.control(sliding_controller);
+                robot.control(
+                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                        std::array<double, 6> wrench_ext = robot_state.O_F_ext_hat_K;
+                        RCLCPP_WARN(rclcpp::get_logger("mafia"), "force [z: %f]", wrench_ext[2]);
+                        return sliding_controller.force_control_callback(robot_state, period);
+                    },
+                    sliding_controller);
             }
             catch (const franka::Exception &e)
             {

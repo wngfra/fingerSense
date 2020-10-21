@@ -16,25 +16,21 @@ namespace franka_control
         x_max_ = 0.0;
         v_x_max_ = 0.0;
 
-        set_parameter(0.0, 0.0, 0.0, 0);
-
-        // Compliance parameters
-        Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
-        stiffness.setZero();
-        stiffness.topLeftCorner(3, 3) << translational_stiffness_ * Eigen::MatrixXd::Identity(3, 3);
-        stiffness.bottomRightCorner(3, 3) << rotational_stiffness_ * Eigen::MatrixXd::Identity(3, 3);
-        damping.setZero();
-        damping.topLeftCorner(3, 3) << 2.0 * sqrt(translational_stiffness_) *
-                                           Eigen::MatrixXd::Identity(3, 3);
-        damping.bottomRightCorner(3, 3) << 2.0 * sqrt(rotational_stiffness_) *
-                                               Eigen::MatrixXd::Identity(3, 3);
-        stiffness_ = stiffness;
-        damping_ = damping;
+        set_stiffness({{200, 200, 200, 20, 20, 20}});
+        set_sliding_parameter(0.0, 0.0, 0.0, 0);
     }
 
     franka::CartesianVelocities SlidingControl::operator()(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
+
+        if (time_ == 0.0)
+        {
+            initial_state_ = robot_state;
+            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
+            position_d_ = initial_transform_.translation();
+            orientation_d_ = initial_transform_.linear();
+        }
 
         double v_x = 0.0;
         double v_y = 0.0;
@@ -63,7 +59,7 @@ namespace franka_control
             v_x = v_x_max_ * std::sin(omega_ * t);
         }
 
-        v_y = 0.05 * std::sin(32 * M_PI / total_time * time_);
+        // v_y = 0.05 * std::sin(32 * M_PI / total_time * time_);
 
         if (time_ >= total_time)
         {
@@ -81,31 +77,13 @@ namespace franka_control
         return output;
     }
 
-    franka::CartesianPose SlidingControl::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    franka::Torques SlidingControl::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
         if (time_ == 0.0)
         {
-            initial_state_ = robot_state;
-        }
-
-        constexpr double omega = M_PI / 5.0;
-        constexpr double dz_max = 0.6;
-
-        std::array<double, 16> desired_pose = initial_state_.O_T_EE;
-        desired_pose[14] -= dz_max * std::sin(omega * time_);
-
-        return desired_pose;
-    }
-
-    franka::Torques SlidingControl::impedance_control_callback(const franka::RobotState &robot_state, franka::Duration period)
-    {
-        time_ += period.toSec();
-
-        if (time_ == 0.0)
-        {
-            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE_d.data());
+            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
         }
@@ -150,7 +128,9 @@ namespace franka_control
         if (std::abs(wrench_ext[2]) >= 11.0)
         {
             output.motion_finished = true;
-        } else {
+        }
+        else
+        {
             position_d_[0] += 0.00001;
             position_d_[2] -= 0.0001;
         }
@@ -158,13 +138,12 @@ namespace franka_control
         return output;
     }
 
-    franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration duration)
+    franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
-        initial_state_ = robot_state;
-
-        initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_d.data());
-        position_d_ = initial_transform_.translation();
-        orientation_d_ = initial_transform_.linear();
+        std::array<double, 16> pose = robot_state.O_T_EE_d;
+        position_d_[0] = pose[12];
+        position_d_[1] = pose[13];
+        position_d_[2] = pose[14];
 
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
@@ -199,6 +178,7 @@ namespace franka_control
         tau_d << tau_task + coriolis;
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+
         return tau_d_array;
     }
 
@@ -207,7 +187,32 @@ namespace franka_control
         time_ = 0.0;
     }
 
-    void SlidingControl::set_parameter(const double distance, const double force, const double speed, const int cycle_max)
+    void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient)
+    {
+        // Compliance parameters
+        Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
+        stiffness.setZero();
+        damping.setZero();
+
+        stiffness(0, 0) = stiffness_coefficient[0];
+        stiffness(1, 1) = stiffness_coefficient[1];
+        stiffness(2, 2) = stiffness_coefficient[2];
+        stiffness(3, 3) = stiffness_coefficient[3];
+        stiffness(4, 4) = stiffness_coefficient[4];
+        stiffness(5, 5) = stiffness_coefficient[5];
+
+        damping(0, 0) = 1.0 * sqrt(stiffness_coefficient[0]);
+        damping(1, 1) = 1.0 * sqrt(stiffness_coefficient[1]);
+        damping(2, 2) = 1.0 * sqrt(stiffness_coefficient[2]);
+        damping(3, 3) = 1.0 * sqrt(stiffness_coefficient[3]);
+        damping(4, 4) = 1.0 * sqrt(stiffness_coefficient[4]);
+        damping(5, 5) = 1.0 * sqrt(stiffness_coefficient[5]);
+
+        stiffness_ = stiffness;
+        damping_ = damping;
+    }
+
+    void SlidingControl::set_sliding_parameter(const double distance, const double force, const double speed, const int cycle_max)
     {
         x_max_ = distance;
         v_x_max_ = speed;
