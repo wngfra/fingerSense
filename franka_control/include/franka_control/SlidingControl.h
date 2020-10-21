@@ -21,14 +21,18 @@ namespace franka_control
         // ~SlidingControl();
 
         franka::CartesianVelocities operator()(const franka::RobotState &, franka::Duration);
+        franka::CartesianPose touch_control_callback(const franka::RobotState &, franka::Duration);
+        franka::Torques impedance_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
+
+        void reset_time();
         void set_parameter(const double, const double, const double, const int);
 
     private:
         std::shared_ptr<franka::Model> model_ptr_;
 
-        const double translational_stiffness{150.0};
-        const double rotational_stiffness{10.0};
+        const double translational_stiffness_{200.0};
+        const double rotational_stiffness_{20.0};
 
         Eigen::MatrixXd stiffness_, damping_;
         Eigen::Affine3d initial_transform_;
@@ -36,6 +40,7 @@ namespace franka_control
         Eigen::Quaterniond orientation_d_;
 
         franka::RobotState initial_state_;
+        std::array<double, 6> initial_O_F_ext_hat_K_;
 
         double x_max_, v_x_max_, accel_x_;
         double accel_time_, const_v_time_;

@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
     // Start recoding data
     auto res = node_state_manager.change_state(1, 3s);
-    std::this_thread::sleep_for(2s);
+    std::this_thread::sleep_for(3s);
 
     // Set robot controllers
     bool has_error = false;
@@ -52,29 +52,39 @@ int main(int argc, char **argv)
         auto model_ptr = std::make_shared<franka::Model>(robot.loadModel());
 
         // First move the robot to a suitable joint configuration
-        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 9.0, M_PI_4}};
         MotionGenerator motion_generator(0.5, q_goal);
         robot.control(motion_generator);
 
-        const int cycle_max = 1;
+        franka_control::SlidingControl sliding_controller(model_ptr);
 
-        franka_control::SlidingControl controller(model_ptr);
+        try
+        {
+            robot.control(
+                [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                    return sliding_controller.impedance_control_callback(robot_state, period);
+                });
+        }
+        catch (const franka::Exception &e)
+        {
+            robot.automaticErrorRecovery();
+            RCLCPP_WARN(rclcpp::get_logger("mafia"), "Attemped recovery from error: \n%s.", e.what());
+        }
+
+        RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
 
         while (*speed > 0.0)
         {
             RCLCPP_INFO(server_handler->get_logger(), "distance: %f, force: %f, speed: %f", *distance, *force, *speed);
-            controller.set_parameter(*distance, *force, *speed, cycle_max);
+            sliding_controller.set_parameter(*distance, *force, *speed, 1);
             try
             {
-                robot.control([&](const franka::RobotState &robot_state, franka::Duration duration) -> franka::Torques {
-                    return controller.force_control_callback(robot_state, duration);
-                }, controller);
+                robot.control(sliding_controller);
             }
             catch (const franka::Exception &e)
             {
                 robot.automaticErrorRecovery();
-                RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Attemped recovery from error: \n%s.", e.what());
-                robot.control(motion_generator);
+                RCLCPP_WARN(rclcpp::get_logger("mafia"), "Attemped recovery from error: \n%s.", e.what());
             }
         }
 
@@ -82,7 +92,7 @@ int main(int argc, char **argv)
     }
     catch (const franka::Exception &e)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("libfranka"), "%s", e.what());
+        RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s", e.what());
         has_error = true;
     }
 
@@ -93,11 +103,11 @@ int main(int argc, char **argv)
         {
             robot.automaticErrorRecovery();
             has_error = false;
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Successfully recovered from error.");
+            RCLCPP_INFO(rclcpp::get_logger("mafia"), "Successfully recovered from error.");
         }
         catch (const franka::Exception &e)
         {
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "%s\nAutomatic error recovery failed!", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s\nAutomatic error recovery failed!", e.what());
         }
     }
 
