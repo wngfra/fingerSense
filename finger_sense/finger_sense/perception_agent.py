@@ -8,6 +8,7 @@ from rclpy.node import Node
 from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
+from percepy import fourier_cov
 
 class PerceptionAgent(Node):
 
@@ -54,6 +55,9 @@ class PerceptionAgent(Node):
         self.count += 1
 
         if self.count % self.stack_size == 0:
+            # Perception process
+            cov_matrix = fourier_cov(self.tactile_stack)
+
             self.send_request(np.random.rand() * 0.1 + 0.05, 1.0, 0.25)
             try:
                 res = self.future.result()

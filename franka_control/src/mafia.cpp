@@ -64,8 +64,6 @@ int main(int argc, char **argv)
             });
 
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
-        
-        sliding_controller.set_stiffness({{3000, 3000, 1000, 100, 100, 100}});
 
         while (*speed > 0.0)
         {
@@ -74,12 +72,16 @@ int main(int argc, char **argv)
             try
             {
                 robot.control(
-                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                    /*[&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                         std::array<double, 6> wrench_ext = robot_state.O_F_ext_hat_K;
                         RCLCPP_WARN(rclcpp::get_logger("mafia"), "force [z: %f]", wrench_ext[2]);
                         return sliding_controller.force_control_callback(robot_state, period);
-                    },
-                    sliding_controller);
+                    },*/
+                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                        std::array<double, 6> wrench_ext = robot_state.O_F_ext_hat_K;
+                        RCLCPP_WARN(rclcpp::get_logger("mafia"), "force [z: %f]", wrench_ext[2]);
+                        return sliding_controller(robot_state, period);
+                    }, franka::ControllerMode::kCartesianImpedance);
             }
             catch (const franka::Exception &e)
             {
