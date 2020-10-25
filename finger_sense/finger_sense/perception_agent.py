@@ -3,6 +3,7 @@
 
 import numpy as np
 import rclpy
+from mayavi import mlab
 from rclpy.node import Node
 
 from franka_interfaces.srv import ChangeSlidingParameter

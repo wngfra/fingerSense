@@ -1,4 +1,4 @@
-# Tactile-based Hybrid Control for TacSense Project
+# Tactile-based Control and Perception for FingerSense Project
 
 ## <img src="https://i.udemycdn.com/course/480x270/1797828_c391_3.jpg" width="48" height="27" /> 
 
@@ -6,11 +6,11 @@
 2. `franka_control` contains Franka Emika Panda control interface
 3. `can2wifi2ros` contains codes for a DIY `CAN2WIFI` module, see `README` there
 4. Using a [CPM-Finger](https://www.cyskin.com/cpm-finger-the-finger-for-textile-manipulation/) tactile sensor
-5. Non-realtime config will be applied to `robot` automatically when `PREEMPT_RT` not detected
-6. Default `UDP` socket ip is binded to `0.0.0.0` for use in containers
-7. `/tactile_publisher/change_state` service is created with the node to enable calibration state; set state of the node to `0` for calibration and `1` to publish calibrated signals; number of samples used for calibration can be set in `tactile_signal_publisher.py`
+5. Non-realtime config will be applied to `robot` when `PREEMPT_RT` not detected
+6. Default `UDP` socket ip of `tactile_signal_publisher` is binded to `0.0.0.0` for use in containers
+7. Added node state management; node state list is in `tactile_publisher.py`
 
-## Docker/Podman
+## Container
 1. `Dockerfile` for development/deployment containers
 2. CUDA support added
 3. Pre-built images are available at dockerhub `wngfra/ros2cuda`

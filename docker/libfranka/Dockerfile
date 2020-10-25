@@ -45,8 +45,13 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make install
 
 # Create a sudo user
-RUN useradd -rm -d /home/ubuntu -s /bin/bash -u 1000 ubuntu
+RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu
 USER ubuntu
-WORKDIR /home/ubuntu/ros2_ws
+WORKDIR /ubuntu/ros2_ws
 
+# setup entrypoint
+COPY ./ros_entrypoint.sh /ubuntu/
+RUN chmod +x /ubuntu/ros_entrypoint.sh
+
+ENTRYPOINT ["/ubuntu/ros_entrypoint.sh"]
 CMD ["bash"]
