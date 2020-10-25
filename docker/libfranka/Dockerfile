@@ -21,14 +21,15 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-tk \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install \
+RUN pip3 install -U\
     argcomplete \
     autopep8 \
     jedi \
     jax jaxlib==0.1.56+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
     mayavi \
     pandas \
-    scipy
+    scipy \
+    tensorly
 
 # Configure environment variables
 ARG ROS_DISTRO=foxy
