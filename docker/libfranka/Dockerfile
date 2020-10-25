@@ -4,7 +4,7 @@
 ARG FROM_IMAGE=wngfra/ros2cuda:base
 FROM $FROM_IMAGE
 
-# install packages
+# Install packages
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
     git \
     iputils-ping \
@@ -44,14 +44,17 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
-# Create a sudo user
+# Create a non-root user
 RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu
-USER ubuntu
-WORKDIR /ubuntu/ros2_ws
 
-# setup entrypoint
+# Setup entrypoint
 COPY ./ros_entrypoint.sh /ubuntu/
-RUN chmod +x /ubuntu/ros_entrypoint.sh
+RUN chmod +x /ubuntu/ros_entrypoint.sh \
+    && chown ubuntu /ubuntu/ros_entrypoint.sh
+
+# Change default user
+WORKDIR /ubuntu/ros2_ws
+USER ubuntu
 
 ENTRYPOINT ["/ubuntu/ros_entrypoint.sh"]
 CMD ["bash"]
