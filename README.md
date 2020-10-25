@@ -11,6 +11,6 @@
 7. `/tactile_publisher/change_state` service is created with the node to enable calibration state; set state of the node to `0` for calibration and `1` to publish calibrated signals; number of samples used for calibration can be set in `tactile_signal_publisher.py`
 
 ## Docker/Podman
-1. `Dockerfile` is provided for development/deployment in containers
-2. Alternatively, pull images `wngfra/ros2franka` from [dockerhub](https://hub.docker.com/)
-3. `run_container.sh <container-name>` helps to run a development container with X11 forwarding, host-net support, username `ubuntu` at the default workdir `/home/ubuntu/ros2_ws`
+1. `Dockerfile` for development/deployment containers
+2. CUDA support added
+3. Pre-built images are available at dockerhub `wngfra/ros2cuda`

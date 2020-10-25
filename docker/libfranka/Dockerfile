@@ -6,12 +6,14 @@ FROM $FROM_IMAGE
 
 # install packages
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
+    git \
     iputils-ping \
     libcanberra-gtk-module \
     libcanberra-gtk3-module \
     libeigen3-dev \
     libpoco-dev \
     libpython3-dev \
+    python3-colcon-common-extensions \
     python3-dev \
     python3-matplotlib \
     python3-opencv \
@@ -38,7 +40,7 @@ ENV ROS_VERSION=2 \
 RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
 
 WORKDIR /usr/src/libfranka/build
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. \
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
