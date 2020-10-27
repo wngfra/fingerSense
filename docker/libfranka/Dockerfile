@@ -46,16 +46,11 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make install
 
 # Create a non-root user
-RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu
-
-# Setup entrypoint
-COPY ./ros_entrypoint.sh /ubuntu/
-RUN chmod +x /ubuntu/ros_entrypoint.sh \
-    && chown ubuntu /ubuntu/ros_entrypoint.sh
+RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu \
+    && echo 'source "/opt/ros/$ROS_DISTRO/setup.bash"' >> /ubuntu/.bashrc
 
 # Change default user
 WORKDIR /ubuntu/ros2_ws
 USER ubuntu
 
-ENTRYPOINT ["/ubuntu/ros_entrypoint.sh"]
 CMD ["bash"]
