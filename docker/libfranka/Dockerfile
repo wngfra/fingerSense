@@ -28,6 +28,7 @@ RUN pip3 install -U\
     jax jaxlib==0.1.56+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
     mayavi \
     pandas \
+    scikit-fda \
     scipy \
     tensorly
 

@@ -3,13 +3,13 @@
 
 import numpy as np
 import rclpy
-from mayavi import mlab
 from rclpy.node import Node
+from skfda.representation.basis import Fourier
 
 from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
-from percepy import fourier_cov
+from finger_sense.percepy import fourier_cov
 
 class PerceptionAgent(Node):
 
@@ -19,15 +19,29 @@ class PerceptionAgent(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('stack_size', 64)
+                ('core_dir', './src/fingerSense/finger_sense/finger_sense/core.npy'),
+                ('factor_dir', './src/fingerSense/finger_sense/finger_sense/factors.npy'),
+                ('n_basis', 33),
+                ('stack_size', 64),
             ]
         )
 
+        # Knowledge base directory
+        core_dir = self.get_parameter(
+            'core_dir').get_parameter_value().string_value
+        factor_dir = self.get_parameter(
+            'factor_dir').get_parameter_value().string_value
+        n_basis = self.get_parameter(
+            'n_basis').get_parameter_value().integer_value
+
+        self.fda_basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
         self.count = 0
+        self.core = np.load(core_dir, allow_pickle=True)
+        self.factors = np.load(factor_dir, allow_pickle=True)
         self.stack_size = self.get_parameter(
             'stack_size').get_parameter_value().integer_value
         self.tactile_stack = np.zeros((self.stack_size, 16), dtype=np.float32)
-
+        
         self.sub_tactile = self.create_subscription(
             TactileSignal,
             '/tactile_signals',
@@ -54,10 +68,10 @@ class PerceptionAgent(Node):
             self.tactile_stack[-1] = item
 
         self.count += 1
-
+        print(self.factors[0])
         if self.count % self.stack_size == 0:
             # Perception process
-            cov_matrix = fourier_cov(self.tactile_stack)
+            cov_matrix = fourier_cov(self.tactile_stack, self.fda_basis)
 
             self.send_request(np.random.rand() * 0.1 + 0.05, 1.0, 0.25)
             try:
@@ -68,6 +82,9 @@ class PerceptionAgent(Node):
                 self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
     def send_request(self, speed, force, distance=0.3):
+        '''
+            Send parameter change request to control parameter server
+        '''
         self.req.distance = distance
         self.req.force = force
         self.req.speed = speed
