@@ -7,9 +7,6 @@ FROM $FROM_IMAGE
 # Install packages
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
     git \
-    iputils-ping \
-    libcanberra-gtk-module \
-    libcanberra-gtk3-module \
     libeigen3-dev \
     libpoco-dev \
     python3-colcon-common-extensions \
@@ -21,13 +18,8 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
 
 RUN pip3 install -U\
     argcomplete \
-    autopep8 \
-    jedi \
-    jax jaxlib==0.1.56+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
     pandas \
-    pylint \
     scikit-fda \
-    scipy \
     tensorly
 
 # Configure environment variables

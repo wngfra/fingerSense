@@ -1,8 +1,10 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
+import matplotlib.pyplot as plt
 import numpy as np
 import rclpy
+from mpl_toolkits.mplot3d import Axes3D
 from rclpy.node import Node
 from skfda.representation.basis import Fourier
 
@@ -23,7 +25,7 @@ class PerceptionAgent(Node):
                 ('core_dir', './src/fingerSense/finger_sense/finger_sense/core.npy'),
                 ('factor_dir', './src/fingerSense/finger_sense/finger_sense/factors.npy'),
                 ('n_basis', 33),
-                ('stack_size', 64),
+                ('stack_size', 128),
             ]
         )
 
@@ -55,6 +57,9 @@ class PerceptionAgent(Node):
             ChangeSlidingParameter, 'change_sliding_parameter')
         self.req = ChangeSlidingParameter.Request()
 
+        fig = plt.figure()
+        self.ax = fig.add_subplot(111, projection='3d')
+
     def append_data_callback(self, msg):
         self.append_data(msg.data)
 
@@ -69,14 +74,17 @@ class PerceptionAgent(Node):
             self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
             self.tactile_stack[-1] = item
             basis_coeffs = basis_expand(self.tactile_stack, self.fda_basis)
-            vec3d = project2vec(basis_coeffs, self.factors)
-            self.vec_list.append(vec3d)
+            self.vec_list.append(project2vec(basis_coeffs, self.factors))
+            vec_array = np.array(self.vec_list).reshape(-1, 3)
+            self.ax.scatter(vec_array[:, 0], vec_array[:, 1], vec_array[:, 2])
 
+        plt.draw()
+        plt.pause(0.001)
         self.count += 1
 
         if self.count % self.stack_size == 0:
             distance, force, speed = 0.25, 0.5, 0.1 * np.random.rand()
-            if self.count >= 640:
+            if self.count >= 320:
                 speed = 0.0
             try:
                 self.send_request(distance, force, speed)
