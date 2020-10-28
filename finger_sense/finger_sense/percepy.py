@@ -10,12 +10,14 @@ from tensorly.decomposition import tucker
 from tensorly.tenalg import mode_dot
 
 
-def fourier_cov(x):
-    # TODO: Normalize the sample first
-    y = fft(x, axis=0) / x.shape[0]
-    ys = y[:y.shape[0]//2, :]
-    ys_real = np.concatenate([np.real(ys), np.imag(ys)], axis=1)
+def basis_expand(data_matrix, basis):
+    fd = FDataGrid(data_matrix.transpose()).to_basis(basis)
+    coeffs = fd.coefficients
+    
+    return coeffs.transpose()
 
-    cov_ys_real = np.cov(ys_real)
-
-    return cov_ys_real
+def project2vec(A, factors):
+    projA1 = mode_dot(A, factors[0].transpose(), 0)
+    projA2 = mode_dot(projA1, factors[1].transpose(), 1)
+    
+    return projA2

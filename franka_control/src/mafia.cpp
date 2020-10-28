@@ -78,10 +78,9 @@ int main(int argc, char **argv)
                         return sliding_controller.force_control_callback(robot_state, period);
                     },*/
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
-                        std::array<double, 6> wrench_ext = robot_state.O_F_ext_hat_K;
-                        RCLCPP_WARN(rclcpp::get_logger("mafia"), "force [z: %f]", wrench_ext[2]);
                         return sliding_controller(robot_state, period);
-                    }, franka::ControllerMode::kCartesianImpedance);
+                    },
+                    franka::ControllerMode::kCartesianImpedance);
             }
             catch (const franka::Exception &e)
             {

@@ -9,7 +9,8 @@ from skfda.representation.basis import Fourier
 from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
-from finger_sense.percepy import fourier_cov
+from finger_sense.percepy import basis_expand, project2vec
+
 
 class PerceptionAgent(Node):
 
@@ -41,7 +42,8 @@ class PerceptionAgent(Node):
         self.stack_size = self.get_parameter(
             'stack_size').get_parameter_value().integer_value
         self.tactile_stack = np.zeros((self.stack_size, 16), dtype=np.float32)
-        
+        self.vec_list = []
+
         self.sub_tactile = self.create_subscription(
             TactileSignal,
             '/tactile_signals',
@@ -66,22 +68,22 @@ class PerceptionAgent(Node):
         else:
             self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
             self.tactile_stack[-1] = item
+            basis_coeffs = basis_expand(self.tactile_stack, self.fda_basis)
+            vec3d = project2vec(basis_coeffs, self.factors)
+            self.vec_list.append(vec3d)
 
         self.count += 1
-        print(self.factors[0])
-        if self.count % self.stack_size == 0:
-            # Perception process
-            cov_matrix = fourier_cov(self.tactile_stack, self.fda_basis)
 
-            self.send_request(np.random.rand() * 0.1 + 0.05, 1.0, 0.25)
+        if self.count % self.stack_size == 0:
+            distance, force, speed = 0.25, 0.5, 0.1 * np.random.rand()
+            if self.count >= 640:
+                speed = 0.0
             try:
-                res = self.future.result()
-                if not res.success:
-                    self.get_logger().warn('Sliding parameters not changed')
+                self.send_request(distance, force, speed)
             except Exception as e:
                 self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
-    def send_request(self, speed, force, distance=0.3):
+    def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''
             Send parameter change request to control parameter server
         '''

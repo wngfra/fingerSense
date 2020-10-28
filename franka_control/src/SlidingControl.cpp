@@ -125,7 +125,7 @@ namespace franka_control
         franka::Torques output(tau_d_array);
 
         std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
-        if (std::abs(wrench_ext[2]) >= 11.0)
+        if (std::abs(wrench_ext[2]) >= 10.0)
         {
             output.motion_finished = true;
         }

@@ -12,11 +12,9 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     libcanberra-gtk3-module \
     libeigen3-dev \
     libpoco-dev \
-    libpython3-dev \
     python3-colcon-common-extensions \
     python3-dev \
     python3-matplotlib \
-    python3-opencv \
     python3-pip \
     python3-tk \
 	&& rm -rf /var/lib/apt/lists/*
@@ -26,8 +24,8 @@ RUN pip3 install -U\
     autopep8 \
     jedi \
     jax jaxlib==0.1.56+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
-    mayavi \
     pandas \
+    pylint \
     scikit-fda \
     scipy \
     tensorly

@@ -1,7 +1,7 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
-ARG FROM_IMAGE=nvcr.io/nvidia/cuda:11.0-runtime-ubuntu20.04
+ARG FROM_IMAGE=nvcr.io/nvidia/cuda:11.0-devel-ubuntu20.04
 FROM $FROM_IMAGE
 
 # setup timezone
