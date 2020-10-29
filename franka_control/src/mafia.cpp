@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 
         robot.control(
             [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                sliding_controller.get_franka_state(robot_state, *O_F_ext_hat_K, *position, *quaternion);
+                getFrankaState(robot_state, *O_F_ext_hat_K, *position, *quaternion);
                 return sliding_controller.touch_control_callback(robot_state, period);
             });
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
             sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1);
             robot.control(
                 [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                    sliding_controller.get_franka_state(robot_state, *O_F_ext_hat_K, *position, *quaternion);
+                    getFrankaState(robot_state, *O_F_ext_hat_K, *position, *quaternion);
                     return sliding_controller.force_control_callback(robot_state, period);
                 },
                 [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {

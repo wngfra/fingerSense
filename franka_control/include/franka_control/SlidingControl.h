@@ -24,7 +24,6 @@ namespace franka_control
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
 
-        void get_franka_state(const franka::RobotState &, std::array<double, 6> &, std::array<double, 3> &, std::array<double, 4> &) const;
         void set_stiffness(const std::array<double, 6> &);
         void set_sliding_parameter(const double, const double, const double, const int);
 

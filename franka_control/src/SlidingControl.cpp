@@ -186,18 +186,6 @@ namespace franka_control
         return output;
     }
 
-    void SlidingControl::get_franka_state(const franka::RobotState &robot_state, std::array<double, 6> &O_T_ext_hat_K, std::array<double, 3> &position, std::array<double, 4> &quaternion) const
-    {
-        O_T_ext_hat_K = robot_state.O_F_ext_hat_K;
-
-        Eigen::Affine3d transform_(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-        Eigen::Vector3d position_(transform_.translation());
-        Eigen::Quaterniond orientation_(transform_.linear());
-
-        Eigen::VectorXd::Map(&position[0], 3) = position_;
-        Eigen::VectorXd::Map(&quaternion[0], 4) = orientation_.coeffs();
-    }
-
     void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient)
     {
         // Compliance parameters

@@ -17,6 +17,12 @@
  */
 
 /**
+ * Gets current robot state for external wrench, end-effetor positon and orientation (quaternion)
+ *
+ */
+void getFrankaState(const franka::RobotState &, std::array<double, 6> &, std::array<double, 3> &, std::array<double, 4> &);
+
+/**
  * Gets a real-time configuration based on linux kernel version
  *
  * @return a franka::RealtimeConfig::kEnforce if `PREEMPT_RT` found otherwise franka::RealtimeConfig::kIgnore

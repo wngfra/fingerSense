@@ -7,6 +7,8 @@ namespace franka_control
     void FrankaStatePublisher::timer_callback()
     {
         auto msg = franka_interfaces::msg::RobotState();
+        msg.header.frame_id = "base";
+        msg.header.stamp = this->get_clock()->now();
         msg.o_f_ext_hat_k = *O_F_ext_hat_K_;
         msg.position = *position_;
         msg.quaternion = *quaternion_;

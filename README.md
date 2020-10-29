@@ -2,6 +2,7 @@
 
 ## <img src="https://i.udemycdn.com/course/480x270/1797828_c391_3.jpg" width="48" height="27" /> 
 
+## Overview
 1. [libfranka](https://frankaemika.github.io/docs/libfranka.html) is needed
 2. `franka_control` contains Franka Emika Panda control interface
 3. `can2wifi2ros` contains codes for a DIY `CAN2WIFI` module, see `README` there
@@ -14,3 +15,8 @@
 1. `Dockerfile` for development/deployment containers
 2. CUDA support added
 3. Pre-built images are available at dockerhub `wngfra/ros2cuda`
+
+## Robot Control
+1. Reach (downwards) along z-axis for a surface with the robot's force-torque sensor, confirmed by a force threshold
+2. y-axis pushability for manually shifting sliding areas
+3. [TODO] Add z-axis force control for sliding

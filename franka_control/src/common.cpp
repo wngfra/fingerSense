@@ -3,14 +3,27 @@
 #include "franka_control/common.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <exception>
 #include <iostream>
 #include <sys/utsname.h>
 
+#include <Eigen/Dense>
+
 #include <franka/exception.h>
 #include <franka/robot.h>
+
+void getFrankaState(const franka::RobotState &robot_state, std::array<double, 6> &O_T_ext_hat_K, std::array<double, 3> &position, std::array<double, 4> &quaternion)
+{
+  O_T_ext_hat_K = robot_state.O_F_ext_hat_K;
+
+  Eigen::Affine3d transform_(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+  Eigen::Vector3d position_(transform_.translation());
+  Eigen::Quaterniond orientation_(transform_.linear());
+
+  Eigen::VectorXd::Map(&position[0], 3) = position_;
+  Eigen::VectorXd::Map(&quaternion[0], 4) = orientation_.coeffs();
+}
 
 franka::RealtimeConfig getRealtimeConfig()
 {
