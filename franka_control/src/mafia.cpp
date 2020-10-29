@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
 
-        sliding_controller.set_stiffness({{3000, 1000, 3000, 300, 300, 300}});
+        sliding_controller.set_stiffness({{3500, 500, 3000, 300, 300, 300}});
 
         while (*speed > 0.0)
         {

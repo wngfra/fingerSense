@@ -73,8 +73,8 @@ class PerceptionAgent(Node):
         else:
             self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
             self.tactile_stack[-1] = item
-            basis_coeffs = basis_expand(self.tactile_stack, self.fda_basis)
-            self.vec_list.append(project2vec(basis_coeffs, self.factors))
+            coeff_cov = basis_expand(self.tactile_stack, self.fda_basis)
+            self.vec_list.append(project2vec(coeff_cov, self.factors))
             vec_array = np.array(self.vec_list).reshape(-1, 3)
             self.ax.scatter(vec_array[:, 0], vec_array[:, 1], vec_array[:, 2])
 

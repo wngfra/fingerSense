@@ -41,7 +41,7 @@ namespace franka_control
 
         double x_max_, v_x_max_, accel_x_;
         double accel_time_, const_v_time_;
-        double force_;
+        double force_, force_error_integral_;
         double omega_;
         int cycle_max_;
 

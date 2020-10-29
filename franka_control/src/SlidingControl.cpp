@@ -26,6 +26,7 @@ namespace franka_control
 
         if (time_ == 0.0)
         {
+            force_error_integral_ = 0.0;
             initial_state_ = robot_state;
             initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE.data());
             position_d_ = initial_transform_.translation();
@@ -79,6 +80,7 @@ namespace franka_control
 
     franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
+
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
@@ -94,12 +96,16 @@ namespace franka_control
         // compute error to desired equilibrium pose
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
+        position_d_[0] = pose_d[12];
+
         std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
         if (std::abs(wrench_ext[1]) >= 8.0)
         {
             position_d_[1] = position(1);
         }
-        position_d_[0] = pose_d[12];
+
+        force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
+        position_d_[2] += 2e-6 * (-force_ - wrench_ext[2]) + 1e-6 * force_error_integral_;
 
         Eigen::Matrix<double, 6, 1> error;
         error.head(3) << position - position_d_;

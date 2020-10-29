@@ -13,8 +13,9 @@ from tensorly.tenalg import mode_dot
 def basis_expand(data_matrix, basis):
     fd = FDataGrid(data_matrix.transpose()).to_basis(basis)
     coeffs = fd.coefficients
+    coeff_cov = np.cov(coeffs.transpose())
     
-    return coeffs.transpose()
+    return coeff_cov
 
 def project2vec(A, factors):
     projA1 = mode_dot(A, factors[0].transpose(), 0)
