@@ -48,12 +48,21 @@ target_link_libraries(common PUBLIC Eigen3::Eigen3 Franka::Franka)
 target_link_libraries(sliding_control PUBLIC Eigen3::Eigen3 Franka::Franka)
 
 # add ROS2 libraries 
+add_library(franka_state_publisher STATIC
+  src/FrankaStatePublisher.cpp
+)
+
 add_library(node_state_manager STATIC
   src/NodeStateManager.cpp
 )
 
 add_library(sliding_parameter_server STATIC
   src/SlidingParameterServer.cpp
+)
+
+ament_target_dependencies(franka_state_publisher
+  "franka_interfaces"
+  "rclcpp"
 )
 
 ament_target_dependencies(node_state_manager
@@ -75,6 +84,7 @@ foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target}
     common
+    franka_state_publisher
     node_state_manager
     sliding_control
     sliding_parameter_server

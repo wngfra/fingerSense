@@ -14,6 +14,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "franka_control/common.h"
+#include "franka_control/FrankaStatePublisher.h"
 #include "franka_control/SlidingControl.h"
 #include "franka_control/SlidingParameterServer.h"
 #include "franka_control/NodeStateManager.h"
@@ -26,13 +27,19 @@ int main(int argc, char **argv)
     double *force = new double(0.0);
     double *speed = new double(0.0);
 
+    auto O_F_ext_hat_K = std::make_shared<std::array<double, 6>>();
+    auto position = std::make_shared<std::array<double, 3>>();
+    auto quaternion = std::make_shared<std::array<double, 4>>();
+
     // ROS2 initialization
     rclcpp::init(argc, argv);
+    auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(O_F_ext_hat_K, position, quaternion);
     auto node_state_manager = franka_control::NodeStateManager("tactile_publisher_manager", "/tactile_publisher/change_state");
     auto server_handler = std::make_shared<franka_control::SlidingParameterServer>(distance, force, speed);
-    rclcpp::executors::SingleThreadedExecutor executor;
-    executor.add_node(server_handler);
     std::thread thread([&]() {
+        rclcpp::executors::MultiThreadedExecutor executor;
+        executor.add_node(publisher_handler);
+        executor.add_node(server_handler);
         executor.spin();
     });
 
@@ -52,7 +59,7 @@ int main(int argc, char **argv)
         auto model_ptr = std::make_shared<franka::Model>(robot.loadModel());
 
         // First move the robot to a suitable joint configuration
-        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 9.0, M_PI_4}};
+        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 5.0, M_PI_4}};
         MotionGenerator motion_generator(0.5, q_goal);
         robot.control(motion_generator);
 
@@ -60,33 +67,26 @@ int main(int argc, char **argv)
 
         robot.control(
             [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                sliding_controller.get_franka_state(robot_state, *O_F_ext_hat_K, *position, *quaternion);
                 return sliding_controller.touch_control_callback(robot_state, period);
             });
 
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
 
+        sliding_controller.set_stiffness({{3000, 1000, 3000, 300, 300, 300}});
+
         while (*speed > 0.0)
         {
             RCLCPP_INFO(server_handler->get_logger(), "distance: %f, force: %f, speed: %f", *distance, *force, *speed);
             sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1);
-            try
-            {
-                robot.control(
-                    /*[&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                        std::array<double, 6> wrench_ext = robot_state.O_F_ext_hat_K;
-                        RCLCPP_WARN(rclcpp::get_logger("mafia"), "force [z: %f]", wrench_ext[2]);
-                        return sliding_controller.force_control_callback(robot_state, period);
-                    },*/
-                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
-                        return sliding_controller(robot_state, period);
-                    },
-                    franka::ControllerMode::kCartesianImpedance);
-            }
-            catch (const franka::Exception &e)
-            {
-                robot.automaticErrorRecovery();
-                RCLCPP_WARN(rclcpp::get_logger("mafia"), "Attemped recovery from error: \n%s.", e.what());
-            }
+            robot.control(
+                [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                    sliding_controller.get_franka_state(robot_state, *O_F_ext_hat_K, *position, *quaternion);
+                    return sliding_controller.force_control_callback(robot_state, period);
+                },
+                [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                    return sliding_controller(robot_state, period);
+                });
         }
 
         robot.control(motion_generator);

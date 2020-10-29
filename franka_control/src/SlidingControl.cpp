@@ -27,7 +27,7 @@ namespace franka_control
         if (time_ == 0.0)
         {
             initial_state_ = robot_state;
-            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
+            initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
         }
@@ -75,6 +75,54 @@ namespace franka_control
         }
 
         return output;
+    }
+
+    franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    {
+        // get state variables
+        std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
+        std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
+        // convert to Eigen
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
+        Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+        Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+        Eigen::Vector3d position(transform.translation());
+        Eigen::Quaterniond orientation(transform.linear());
+
+        // compute error to desired equilibrium pose
+        // position error
+        std::array<double, 16> pose_d(robot_state.O_T_EE_d);
+        std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
+        if (std::abs(wrench_ext[1]) >= 8.0)
+        {
+            position_d_[1] = position(1);
+        }
+        position_d_[0] = pose_d[12];
+
+        Eigen::Matrix<double, 6, 1> error;
+        error.head(3) << position - position_d_;
+        // orientation error
+        // "difference" quaternion
+        if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0)
+        {
+            orientation.coeffs() << -orientation.coeffs();
+        }
+        // "difference" quaternion
+        Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
+        error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+        // Transform to base frame
+        error.tail(3) << -transform.linear() * error.tail(3);
+        // compute control
+        Eigen::VectorXd tau_task(7), tau_d(7);
+        // Spring damper system with damping ratio=1
+        tau_task << jacobian.transpose() * (-stiffness_ * error - damping_ * (jacobian * dq));
+        tau_d << tau_task + coriolis;
+        std::array<double, 7> tau_d_array{};
+        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+
+        return tau_d_array;
     }
 
     franka::Torques SlidingControl::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
@@ -138,53 +186,16 @@ namespace franka_control
         return output;
     }
 
-    franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    void SlidingControl::get_franka_state(const franka::RobotState &robot_state, std::array<double, 6> &O_T_ext_hat_K, std::array<double, 3> &position, std::array<double, 4> &quaternion) const
     {
-        std::array<double, 16> pose = robot_state.O_T_EE_d;
-        position_d_[0] = pose[12];
-        position_d_[1] = pose[13];
-        position_d_[2] = pose[14];
+        O_T_ext_hat_K = robot_state.O_F_ext_hat_K;
 
-        // get state variables
-        std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
-        std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
-        // convert to Eigen
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
-        Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-        Eigen::Vector3d position(transform.translation());
-        Eigen::Quaterniond orientation(transform.linear());
-        // compute error to desired equilibrium pose
-        // position error
-        Eigen::Matrix<double, 6, 1> error;
-        error.head(3) << position - position_d_;
-        // orientation error
-        // "difference" quaternion
-        if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0)
-        {
-            orientation.coeffs() << -orientation.coeffs();
-        }
-        // "difference" quaternion
-        Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
-        error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-        // Transform to base frame
-        error.tail(3) << -transform.linear() * error.tail(3);
-        // compute control
-        Eigen::VectorXd tau_task(7), tau_d(7);
-        // Spring damper system with damping ratio=1
-        tau_task << jacobian.transpose() * (-stiffness_ * error - damping_ * (jacobian * dq));
-        tau_d << tau_task + coriolis;
-        std::array<double, 7> tau_d_array{};
-        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+        Eigen::Affine3d transform_(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+        Eigen::Vector3d position_(transform_.translation());
+        Eigen::Quaterniond orientation_(transform_.linear());
 
-        return tau_d_array;
-    }
-
-    void SlidingControl::reset_time()
-    {
-        time_ = 0.0;
+        Eigen::VectorXd::Map(&position[0], 3) = position_;
+        Eigen::VectorXd::Map(&quaternion[0], 4) = orientation_.coeffs();
     }
 
     void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient)
@@ -225,5 +236,10 @@ namespace franka_control
         const_v_time_ = (x_max_ - 2 * accel_x_) / v_x_max_;
         time_ = 0.0;
         cycle_count_ = 0;
+    }
+
+    void SlidingControl::reset_time()
+    {
+        time_ = 0.0;
     }
 } // namespace franka_control
