@@ -23,7 +23,7 @@ RUN pip3 install -U\
     tensorly
 
 WORKDIR /usr/src/mayavi
-RUN git clone https://github.com/enthought/mayavi.git \
+RUN git clone https://github.com/enthought/mayavi.git /usr/src/mayavi \
     && pip3 install -r requirements.txt \
     && python3 setup.py install
 
