@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     });
 
     // Start recoding data
-    auto res = node_state_manager.change_state(1, 3s);
+    node_state_manager.change_state(50, 3s);
     std::this_thread::sleep_for(3s);
 
     // Set robot controllers
@@ -52,6 +52,8 @@ int main(int argc, char **argv)
     std::string robot_ip = "172.16.0.2";
 
     franka::Robot robot(robot_ip, getRealtimeConfig());
+    std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 5.0, M_PI_4}};
+    MotionGenerator motion_generator(0.5, q_goal);
 
     try
     {
@@ -59,8 +61,7 @@ int main(int argc, char **argv)
         auto model_ptr = std::make_shared<franka::Model>(robot.loadModel());
 
         // First move the robot to a suitable joint configuration
-        std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 5.0, M_PI_4}};
-        MotionGenerator motion_generator(0.5, q_goal);
+
         robot.control(motion_generator);
 
         franka_control::SlidingControl sliding_controller(model_ptr);
@@ -73,7 +74,10 @@ int main(int argc, char **argv)
 
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
 
-        sliding_controller.set_stiffness({{3500, 500, 3000, 300, 300, 300}});
+        node_state_manager.change_state(1, 0s);
+        std::this_thread::sleep_for(2s);
+
+        sliding_controller.set_stiffness({{3500, 300, 3000, 300, 400, 300}}, 0.8);
 
         while (*speed > 0.0)
         {
@@ -88,8 +92,6 @@ int main(int argc, char **argv)
                     return sliding_controller(robot_state, period);
                 });
         }
-
-        robot.control(motion_generator);
     }
     catch (const franka::Exception &e)
     {
@@ -111,13 +113,10 @@ int main(int argc, char **argv)
             RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s\nAutomatic error recovery failed!", e.what());
         }
     }
+    robot.control(motion_generator);
 
     // Shutdown tactile signal publisher node
-    res = node_state_manager.change_state(99, 0ns);
-    if (res)
-    {
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Shut down tactile signal publisher node.");
-    }
+    node_state_manager.change_state(99, 0s);
 
     // ROS2 shutdown
     if (thread.joinable())

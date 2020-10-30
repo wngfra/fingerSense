@@ -57,9 +57,6 @@ class PerceptionAgent(Node):
             ChangeSlidingParameter, 'change_sliding_parameter')
         self.req = ChangeSlidingParameter.Request()
 
-        fig = plt.figure()
-        self.ax = fig.add_subplot(111, projection='3d')
-
     def append_data_callback(self, msg):
         self.append_data(msg.data)
 
@@ -68,28 +65,24 @@ class PerceptionAgent(Node):
             Append new data to stack.
             If the stack is full, pop out the first item.
         '''
-        if self.count < self.stack_size:
-            self.tactile_stack[self.count, :] = item
-        else:
-            self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
-            self.tactile_stack[-1] = item
-            coeff_cov = basis_expand(self.tactile_stack, self.fda_basis)
-            self.vec_list.append(project2vec(coeff_cov, self.factors))
-            vec_array = np.array(self.vec_list).reshape(-1, 3)
-            self.ax.scatter(vec_array[:, 0], vec_array[:, 1], vec_array[:, 2])
+        if item is not None:
+            if self.count < self.stack_size:
+                self.tactile_stack[self.count, :] = item
+            else:
+                self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
+                self.tactile_stack[-1] = item
+                coeff_cov = basis_expand(self.tactile_stack, self.fda_basis)
+                self.vec_list.append(project2vec(coeff_cov, self.factors))
+                vec_array = np.array(self.vec_list).reshape(-1, 3)
 
-        plt.draw()
-        plt.pause(0.001)
-        self.count += 1
-
-        if self.count % self.stack_size == 0:
-            distance, force, speed = 0.25, 0.5, 0.1 * np.random.rand()
-            if self.count >= 320:
-                speed = 0.0
-            try:
-                self.send_request(distance, force, speed)
-            except Exception as e:
-                self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+            if self.count % self.stack_size == 0:
+                distance, force, speed = 0.25, 1.0, 0.1 * np.random.rand()
+                if self.count >= 320:
+                    speed = 0.0
+                try:
+                    self.send_request(distance, force, speed)
+                except Exception as e:
+                    self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
     def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''

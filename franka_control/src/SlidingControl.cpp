@@ -16,7 +16,7 @@ namespace franka_control
         x_max_ = 0.0;
         v_x_max_ = 0.0;
 
-        set_stiffness({{200, 200, 200, 20, 20, 20}});
+        set_stiffness({{200, 200, 200, 20, 20, 20}}, 1.0);
         set_sliding_parameter(0.0, 0.0, 0.0, 0);
     }
 
@@ -105,7 +105,7 @@ namespace franka_control
         }
 
         force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
-        position_d_[2] += 2e-6 * (-force_ - wrench_ext[2]) + 1e-6 * force_error_integral_;
+        position_d_[2] += 4e-6 * (-force_ - wrench_ext[2]) + 2e-6 * force_error_integral_;
 
         Eigen::Matrix<double, 6, 1> error;
         error.head(3) << position - position_d_;
@@ -192,7 +192,7 @@ namespace franka_control
         return output;
     }
 
-    void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient)
+    void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
     {
         // Compliance parameters
         Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
@@ -206,12 +206,12 @@ namespace franka_control
         stiffness(4, 4) = stiffness_coefficient[4];
         stiffness(5, 5) = stiffness_coefficient[5];
 
-        damping(0, 0) = 1.0 * sqrt(stiffness_coefficient[0]);
-        damping(1, 1) = 1.0 * sqrt(stiffness_coefficient[1]);
-        damping(2, 2) = 1.0 * sqrt(stiffness_coefficient[2]);
-        damping(3, 3) = 1.0 * sqrt(stiffness_coefficient[3]);
-        damping(4, 4) = 1.0 * sqrt(stiffness_coefficient[4]);
-        damping(5, 5) = 1.0 * sqrt(stiffness_coefficient[5]);
+        damping(0, 0) = damping_coefficient * sqrt(stiffness_coefficient[0]);
+        damping(1, 1) = damping_coefficient * sqrt(stiffness_coefficient[1]);
+        damping(2, 2) = damping_coefficient * sqrt(stiffness_coefficient[2]);
+        damping(3, 3) = damping_coefficient * sqrt(stiffness_coefficient[3]);
+        damping(4, 4) = damping_coefficient * sqrt(stiffness_coefficient[4]);
+        damping(5, 5) = damping_coefficient * sqrt(stiffness_coefficient[5]);
 
         stiffness_ = stiffness;
         damping_ = damping;

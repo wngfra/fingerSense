@@ -4,6 +4,8 @@
 
 #include "franka_control/NodeStateManager.h"
 
+using namespace std::chrono_literals;
+
 namespace franka_control
 {
     NodeStateManager::NodeStateManager(const std::string &node_name, const std::string &service_name)
@@ -16,7 +18,7 @@ namespace franka_control
         }
     }
 
-    bool NodeStateManager::change_state(const int new_state, const std::chrono::nanoseconds time_out)
+    void NodeStateManager::change_state(const int new_state, const std::chrono::nanoseconds time_out)
     {
         request->transition = new_state;
 
@@ -27,8 +29,9 @@ namespace franka_control
         if (rclcpp::spin_until_future_complete(nh, result) ==
             rclcpp::FutureReturnCode::SUCCESS)
         {
-            return true;
+            RCLCPP_INFO(nh->get_logger(), "Node state successfully changed.");
+        } else {
+            RCLCPP_INFO(nh->get_logger(), "Node state not changed.");
         }
-        return false;
     }
 } // namespace franka_control

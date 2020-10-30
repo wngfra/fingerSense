@@ -17,7 +17,7 @@ namespace franka_control
         NodeStateManager(const std::string&, const std::string&);
         // ~NodeStateManager();
 
-        bool change_state(const int, const std::chrono::nanoseconds);
+        void change_state(const int, const std::chrono::nanoseconds);
 
     private:
         // Node-state manager node handler
