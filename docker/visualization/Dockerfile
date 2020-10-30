@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-matplotlib \
     python3-pip \
     python3-tk \
-	&& rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
     argcomplete \
@@ -22,9 +22,9 @@ RUN pip3 install -U\
     scikit-fda \
     tensorly
 
+RUN git clone https://github.com/enthought/mayavi.git /usr/src/mayavi
 WORKDIR /usr/src/mayavi
-RUN git clone https://github.com/enthought/mayavi.git /usr/src/mayavi \
-    && pip3 install -r requirements.txt \
+RUN pip3 install -r requirements.txt \
     && python3 setup.py install
 
 # Configure environment variables

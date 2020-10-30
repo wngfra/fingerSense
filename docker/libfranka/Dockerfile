@@ -22,9 +22,9 @@ ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 
 # Download, build and install libfranka
+RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
 WORKDIR /usr/src/libfranka/build
-RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
