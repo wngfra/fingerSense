@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from rclpy.node import Node
 from skfda.representation.basis import Fourier
 
+from franka_interfaces.msg import RobotState
 from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
@@ -24,8 +25,9 @@ class PerceptionAgent(Node):
             parameters=[
                 ('core_dir', './src/fingerSense/finger_sense/finger_sense/core.npy'),
                 ('factor_dir', './src/fingerSense/finger_sense/finger_sense/factors.npy'),
+                ('save_dir', './src/fingerSense/finger_sense/finger_sense/data.npy'),
                 ('n_basis', 33),
-                ('stack_size', 128),
+                ('stack_size', 96),
             ]
         )
 
@@ -34,22 +36,31 @@ class PerceptionAgent(Node):
             'core_dir').get_parameter_value().string_value
         factor_dir = self.get_parameter(
             'factor_dir').get_parameter_value().string_value
+        save_dir = self.get_parameter(
+            'save_dir').get_parameter_value().string_value
         n_basis = self.get_parameter(
             'n_basis').get_parameter_value().integer_value
 
-        self.fda_basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
         self.count = 0
         self.core = np.load(core_dir, allow_pickle=True)
         self.factors = np.load(factor_dir, allow_pickle=True)
+        self.fda_basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
+        self.robot_state = np.zeros((1, 13), dtype=np.float64)
+        self.save_dir = save_dir
         self.stack_size = self.get_parameter(
             'stack_size').get_parameter_value().integer_value
         self.tactile_stack = np.zeros((self.stack_size, 16), dtype=np.float32)
-        self.vec_list = []
 
+        self.sub_robot = self.create_subscription(
+            RobotState,
+            '/franka_state',
+            self.robot_callback,
+            100
+        )
         self.sub_tactile = self.create_subscription(
             TactileSignal,
             '/tactile_signals',
-            self.append_data_callback,
+            self.tactile_callback,
             10
         )
 
@@ -57,7 +68,12 @@ class PerceptionAgent(Node):
             ChangeSlidingParameter, 'change_sliding_parameter')
         self.req = ChangeSlidingParameter.Request()
 
-    def append_data_callback(self, msg):
+    def robot_callback(self, msg):
+        self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
+        self.robot_state[0, 6:9] = msg.position
+        self.robot_state[0, 9:13] = msg.quaternion
+
+    def tactile_callback(self, msg):
         self.append_data(msg.data)
 
     def append_data(self, item):
@@ -66,23 +82,28 @@ class PerceptionAgent(Node):
             If the stack is full, pop out the first item.
         '''
         if item is not None:
+            self.count += 1
+
             if self.count < self.stack_size:
                 self.tactile_stack[self.count, :] = item
             else:
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
                 coeff_cov = basis_expand(self.tactile_stack, self.fda_basis)
-                self.vec_list.append(project2vec(coeff_cov, self.factors))
-                vec_array = np.array(self.vec_list).reshape(-1, 3)
+                latent_vector = project2vec(coeff_cov, self.factors).reshape(1, -1)
+                with open(self.save_dir, 'ba+') as f:
+                    vectorized_data = np.hstack(
+                        [latent_vector, self.robot_state]).reshape(1, -1)
+                    np.savetxt(f, vectorized_data, delimiter=',', fmt='%1.3e')
 
-            if self.count % self.stack_size == 0:
-                distance, force, speed = 0.25, 1.0, 0.1 * np.random.rand()
-                if self.count >= 320:
-                    speed = 0.0
-                try:
-                    self.send_request(distance, force, speed)
-                except Exception as e:
-                    self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+        if self.count % self.stack_size == 0:
+            distance, force, speed = 0.25, 2.0, 0.1
+            if self.count >= 960:
+                speed = 0.0
+            try:
+                self.send_request(distance, force, speed)
+            except Exception as e:
+                self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
     def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''

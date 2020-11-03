@@ -75,9 +75,9 @@ int main(int argc, char **argv)
         RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
 
         node_state_manager.change_state(1, 0s);
-        std::this_thread::sleep_for(2s);
+        std::this_thread::sleep_for(3s);
 
-        sliding_controller.set_stiffness({{3500, 300, 3000, 300, 400, 300}}, 0.8);
+        sliding_controller.set_stiffness({{3500, 300, 1000, 300, 300, 300}}, 1.0);
 
         while (*speed > 0.0)
         {
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
             RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s\nAutomatic error recovery failed!", e.what());
         }
     }
-    robot.control(motion_generator);
+    // robot.control(motion_generator);
 
     // Shutdown tactile signal publisher node
     node_state_manager.change_state(99, 0s);
