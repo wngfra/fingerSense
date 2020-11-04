@@ -3,6 +3,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import rclpy
 from mpl_toolkits.mplot3d import Axes3D
 from rclpy.node import Node
@@ -12,7 +13,7 @@ from franka_interfaces.msg import RobotState
 from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
-from finger_sense.percepy import basis_expand, project2vec
+from finger_sense.utility import basis_expand, error_ellipsoid, project2vec
 
 
 class PerceptionAgent(Node):
@@ -25,6 +26,7 @@ class PerceptionAgent(Node):
             parameters=[
                 ('core_dir', './src/fingerSense/finger_sense/finger_sense/core.npy'),
                 ('factor_dir', './src/fingerSense/finger_sense/finger_sense/factors.npy'),
+                ('info_dir', './src/fingerSense/finger_sense/finger_sense/info.csv'),
                 ('save_dir', './src/fingerSense/finger_sense/finger_sense/data.npy'),
                 ('n_basis', 33),
                 ('stack_size', 96),
@@ -36,15 +38,18 @@ class PerceptionAgent(Node):
             'core_dir').get_parameter_value().string_value
         factor_dir = self.get_parameter(
             'factor_dir').get_parameter_value().string_value
+        info_dir = self.get_parameter(
+            'info_dir').get_parameter_value().string_value
         save_dir = self.get_parameter(
             'save_dir').get_parameter_value().string_value
         n_basis = self.get_parameter(
             'n_basis').get_parameter_value().integer_value
 
         self.count = 0
-        self.core = np.load(core_dir, allow_pickle=True)
+        self.core = np.load(core_dir, allow_pickle=True).squeeze()
         self.factors = np.load(factor_dir, allow_pickle=True)
         self.fda_basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
+        self.info = pd.read_csv(info_dir, delimiter=',')
         self.robot_state = np.zeros((1, 13), dtype=np.float64)
         self.save_dir = save_dir
         self.stack_size = self.get_parameter(
@@ -68,6 +73,19 @@ class PerceptionAgent(Node):
             ChangeSlidingParameter, 'change_sliding_parameter')
         self.req = ChangeSlidingParameter.Request()
 
+        # Plot knowledge base
+        fig = plt.figure()
+        self.ax = fig.add_subplot(111, projection='3d')
+
+        class_id = self.info['class_id']
+
+        for cid in set(class_id):
+            data = self.core[:, cid == class_id]
+            xs, ys, zs, center, U, W = error_ellipsoid(data)
+            self.ax.plot_surface(xs, ys, zs, rstride=4, cstride=4, alpha=0.2)
+
+        plt.pause(1)
+
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
         self.robot_state[0, 6:9] = msg.position
@@ -90,16 +108,18 @@ class PerceptionAgent(Node):
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
                 coeff_cov = basis_expand(self.tactile_stack, self.fda_basis)
-                latent_vector = project2vec(coeff_cov, self.factors).reshape(1, -1)
+                latent_vector = project2vec(
+                    coeff_cov, self.factors).reshape(1, -1)
                 with open(self.save_dir, 'ba+') as f:
                     vectorized_data = np.hstack(
                         [latent_vector, self.robot_state]).reshape(1, -1)
                     np.savetxt(f, vectorized_data, delimiter=',', fmt='%1.3e')
 
         if self.count % self.stack_size == 0:
-            distance, force, speed = 0.25, 2.0, 0.1
+            distance, force, speed = 0.25, 2.0, 0.1 * np.random.rand()
             if self.count >= 960:
                 speed = 0.0
+                self.get_logger().info('Motion finished.')
             try:
                 self.send_request(distance, force, speed)
             except Exception as e:

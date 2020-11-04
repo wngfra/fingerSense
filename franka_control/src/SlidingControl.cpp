@@ -184,8 +184,8 @@ namespace franka_control
         }
         else
         {
-            position_d_[0] += 0.00001;
-            position_d_[2] -= 0.0001;
+            position_d_[0] += 1e-5;
+            position_d_[2] -= 5e-5;
         }
 
         return output;

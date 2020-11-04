@@ -43,29 +43,27 @@ int main(int argc, char **argv)
         executor.spin();
     });
 
-    // Start recoding data
-    node_state_manager.change_state(50, 3s);
-    std::this_thread::sleep_for(3s);
-
     // Set robot controllers
     bool has_error = false;
     std::string robot_ip = "172.16.0.2";
 
     franka::Robot robot(robot_ip, getRealtimeConfig());
-    std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2 + M_PI_4 / 5.0, M_PI_4}};
+    std::array<double, 7> q_goal = {{-0.000197684, 0.35463, 0.000567185, -2.73805, -0.000571208, M_PI, 0.785693}};
     MotionGenerator motion_generator(0.5, q_goal);
 
     try
     {
         setDefaultBehavior(robot);
         auto model_ptr = std::make_shared<franka::Model>(robot.loadModel());
-
-        // First move the robot to a suitable joint configuration
-
-        robot.control(motion_generator);
-
         franka_control::SlidingControl sliding_controller(model_ptr);
 
+        // First move the robot to a suitable joint configuration
+        robot.control(motion_generator);
+
+        // Start recoding data
+        node_state_manager.change_state(50, 3s);
+
+        sliding_controller.set_stiffness({{200, 200, 200, 20, 20, 20}}, 1.0);
         robot.control(
             [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                 getFrankaState(robot_state, *O_F_ext_hat_K, *position, *quaternion);
@@ -113,7 +111,7 @@ int main(int argc, char **argv)
             RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s\nAutomatic error recovery failed!", e.what());
         }
     }
-    // robot.control(motion_generator);
+    robot.control(motion_generator);
 
     // Shutdown tactile signal publisher node
     node_state_manager.change_state(99, 0s);
