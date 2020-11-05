@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-matplotlib \
     python3-pip \
     python3-tk \
+    ros-$ROS_DISTRO-gazebo-ros-pkgs
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
@@ -36,12 +37,6 @@ WORKDIR /usr/src/libfranka/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
-
-# Configure environment variables
-ARG ROS_DISTRO=foxy
-ENV ROS_DISTRO=$ROS_DISTRO
-ENV ROS_VERSION=2 \
-    ROS_PYTHON_VERSION=3
 
 # Create a non-root user
 RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu \
