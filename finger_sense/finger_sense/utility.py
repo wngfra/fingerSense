@@ -13,9 +13,18 @@ from tensorly.tenalg import mode_dot
 def basis_expand(data_matrix, basis):
     fd = FDataGrid(data_matrix.transpose()).to_basis(basis)
     coeffs = fd.coefficients
-    coeff_cov = np.cov(coeffs)
+    coeff_cov = np.cov(coeffs[:, 1:].transpose())
 
     return coeff_cov
+
+def fourier_transform(data_matrix):
+    L = data_matrix.shape[0]
+    F = np.fft.fft(data_matrix, axis=0)
+    Y = np.abs(F/L)
+    Ys = Y[1:L//2+1, :]
+    cov = np.cov(Ys)
+
+    return cov
 
 
 def project2vec(A, factors):
