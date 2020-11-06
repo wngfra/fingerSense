@@ -1,30 +1,26 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from tensorly.tenalg import mode_dot
 from tensorly.decomposition import tucker
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-ds = np.loadtxt('data.npy', delimiter=',')
-data = ds.reshape(-1, 32, 32).transpose([1, 2, 0])
+from utility import error_ellipsoid
+
+core = np.load('core.npy', allow_pickle=True)
+info = pd.read_csv('info.csv', delimiter=',')
+cids = info['class_id']
 
 fig = plt.figure()
-ax = fig.add_subplot(111)
 
-for i in range(data.shape[0]):
-    ax.imshow(data[:, :, i])
-    plt.pause(0.25)
+for i, cid in enumerate(set(cids)):
+    data = core[:, :, cid == cids].squeeze()
+    x, y, z, center, _, W = error_ellipsoid(data, 0.1)
+    ax = fig.add_subplot(1, len(set(cids)), i+1, projection='3d')
+    ax.scatter(data[0, :], data[1, :], data[2, :])
+    ax.plot_surface(x, y, z, alpha=0.2)
+    print(center, W)
 
-core, factors = tucker(data, rank=[3, 1, data.shape[2]])
-
-xs = core[0, 0, :]
-ys = core[1, 0, :]
-zs = core[2, 0, :]
-
-np.save('core.npy', core.squeeze(), allow_pickle=True)
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(xs, ys, zs)
 plt.show()
