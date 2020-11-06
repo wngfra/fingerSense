@@ -11,30 +11,35 @@ from tensorly.tenalg import mode_dot
 
 
 def basis_expand(data_matrix, basis):
-    fd = FDataGrid(data_matrix.transpose()).to_basis(basis)
+    '''
+        FDA basis expansion
+
+        ...
+
+        Parameters
+        ----------
+        data_matrix : numpy.array
+            Input matrix with samples stacked in rows
+        basis : skfda.representation.basis
+            Functional basis class, e.g., BSpline, Fourier, etc.
+
+        Returns
+        -------
+        coeff_cov : numpy.array
+            Coefficients of functional basis representation 
+    '''
+    normalized_data = normalize(data_matrix, axis=1)
+    fd = FDataGrid(normalized_data.transpose()).to_basis(basis)
     coeffs = fd.coefficients
     coeff_cov = np.cov(coeffs[:, 1:].transpose())
 
     return coeff_cov
 
-def fourier_transform(data_matrix):
-    L = data_matrix.shape[0]
-    F = np.fft.fft(data_matrix, axis=0)
-    Y = np.abs(F/L)
-    Ys = Y[1:L//2+1, :]
-    cov = np.cov(Ys)
-
-    return cov
-
-
-def project2vec(A, factors):
-    projA1 = mode_dot(A, factors[0].transpose(), 0)
-    projA2 = mode_dot(projA1, factors[1].transpose(), 1)
-
-    return projA2
-
 
 def error_ellipsoid(A, scaling_factor=1.0):
+    '''
+        compute an error ellipsoid
+    '''
     # coloumnwise data points
     center = np.mean(A, axis=1)
 
@@ -56,3 +61,65 @@ def error_ellipsoid(A, scaling_factor=1.0):
     zs = points[:, 200:300] + center[2]
 
     return xs, ys, zs, center, U, W
+
+
+def KL_divergence_normal(p, q):
+    '''
+        Compute analytical KL-divergence of two multivariate normal distribution
+
+        ...
+
+        Parameters
+        ----------
+        p : list
+            True distribution mean and covariance
+        q : numpy.array
+            Anticipated distribution mean and covariance
+
+        Returns
+        -------
+        divergence : numpy.array
+            Computed D_{KL}(p||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p}+
+    '''
+    mu_p, mu_q = p[0], q[0]
+    sigma_p, sigma_q = p[1], q[1]
+
+    k = mu_p.shape
+
+    if k != mu_q.shape:
+        raise ValueError('dimension mismatch')
+
+    return 0.5 * (
+        np.log(LA.det(sigma_q)/LA.det(sigma_p)) - k +
+        np.dot(np.dot((mu_p - mu_q).transpose(), LA.inv(sigma_q)), (mu_p - mu_q)) +
+        np.trace(np.dot(LA.inv(sigma_q), sigma_p)))
+
+
+def normalize(x, axis):
+    return (x - np.mean(x, axis=axis, keepdims=True)) / np.std(x, axis=axis, keepdims=True)
+
+
+def project2vec(A, factors):
+    '''
+        Project tensor to lower rank matrices
+        Factor matrices are obtained from tucker decomposition
+
+        ...
+
+        Parameters
+        ----------
+        A : numpy.array
+            Input tensor
+        factors : list of numpy.array
+            Factors matrices
+
+        Returns
+        -------
+        projA : numpy.array
+            Projected tensor
+    '''
+    projA = A
+    for i in range(len(factors)):
+        projA = mode_dot(projA, factors[i].transpose(), i)
+
+    return projA
