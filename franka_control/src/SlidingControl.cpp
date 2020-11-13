@@ -194,26 +194,17 @@ namespace franka_control
     void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
     {
         // Compliance parameters
-        Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
-        stiffness.setZero();
-        damping.setZero();
+        Eigen::MatrixXd stiffness_matrix(6, 6), damping_matrix(6, 6);
+        stiffness_matrix.setZero();
+        damping_matrix.setZero();
 
-        stiffness(0, 0) = stiffness_coefficient[0];
-        stiffness(1, 1) = stiffness_coefficient[1];
-        stiffness(2, 2) = stiffness_coefficient[2];
-        stiffness(3, 3) = stiffness_coefficient[3];
-        stiffness(4, 4) = stiffness_coefficient[4];
-        stiffness(5, 5) = stiffness_coefficient[5];
+        for (int i = 0; i < 6; ++i) {
+            stiffness_matrix(i, i) = stiffness_coefficient[i];
+            damping_matrix(i, i) = damping_coefficient * sqrt(stiffness_coefficient[i]);
+        }
 
-        damping(0, 0) = damping_coefficient * sqrt(stiffness_coefficient[0]);
-        damping(1, 1) = damping_coefficient * sqrt(stiffness_coefficient[1]);
-        damping(2, 2) = damping_coefficient * sqrt(stiffness_coefficient[2]);
-        damping(3, 3) = damping_coefficient * sqrt(stiffness_coefficient[3]);
-        damping(4, 4) = damping_coefficient * sqrt(stiffness_coefficient[4]);
-        damping(5, 5) = damping_coefficient * sqrt(stiffness_coefficient[5]);
-
-        stiffness_ = stiffness;
-        damping_ = damping;
+        stiffness_ = stiffness_matrix;
+        damping_ = damping_matrix;
     }
 
     void SlidingControl::set_sliding_parameter(const double distance, const double force, const double speed, const int cycle_max)
