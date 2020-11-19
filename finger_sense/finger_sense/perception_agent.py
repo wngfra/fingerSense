@@ -14,6 +14,7 @@ from franka_interfaces.srv import ChangeSlidingParameter
 from tactile_interfaces.msg import TactileSignal
 
 from finger_sense.utility import basis_expand, error_ellipsoid, KL_divergence_normal, project2vec
+from finger_sense.Perceptum import Perceptum
 
 
 class PerceptionAgent(Node):
@@ -80,16 +81,8 @@ class PerceptionAgent(Node):
             'info_dir').get_parameter_value().string_value
 
         # Load knowledge base
-        self.core = np.load(core_dir, allow_pickle=True).squeeze()
-        self.factors = np.load(factor_dir, allow_pickle=True)[0:2]
-        self.info = pd.read_csv(info_dir, delimiter=',')
-        class_names = self.info['class_name']
-
-        for unique_class in set(class_names):
-            data = self.core[:, unique_class == class_names]
-            mean = np.mean(data, axis=1)
-            cov = np.cov(data)
-            self.known_percepts[unique_class] = [mean, cov]
+        self.perceptum = Perceptum(
+            [core_dir, factor_dir, info_dir], 'Gaussian')
 
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
