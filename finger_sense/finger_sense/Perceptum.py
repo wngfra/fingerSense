@@ -62,12 +62,11 @@ class Perceptum:
                 Directories of core, factors, info files
         '''
         if dirs is not None:
-            self.core = np.load(dirs[0], allow_pickle=True).squeeze()
+            self.core = np.load(dirs[0], allow_pickle=True).squeeze() # in shape (latent_dim, data_size)
             self.factors = np.load(dirs[1], allow_pickle=True)[0:2]
             info = pd.read_csv(dirs[2], delimiter=',')
 
             class_names = info['class_name']
-            self.percept_classes = {}
 
             '''
                 Fit a Gaussian distribution for each unique class
@@ -86,7 +85,9 @@ class Perceptum:
             self.info = None
             self.percept_classes = None
             self.startIdx = 0
+
         self.count = self.startIdx
+        self.previous_kl_div = None # Record previous KL_divergence for all percept classes
 
     def basis_expand(self, data_matrix):
         '''
@@ -147,22 +148,24 @@ class Perceptum:
             Parameters
             ----------
             T : numpy.array
-                Input stimulus tensor
+                Input stimulus matrix in shape (self.stack_size, channel_size)
         '''
         coeff_cov = self.basis_expand(T)
         
         if self.factors is not None: # With loaded prior knowledge base
             latent = self.compress(coeff_cov).reshape(1, -1)
-            self.core = np.hstack((self.core, latent.transpose()))
+            self.core = np.hstack((self.core, latent.transpose())) # in shape (latent_dim, data_size + 1)
             self.count += 1
 
-            if self.count - self.startIdx > self.startIdx:
-                stack = self.core[:, self.count - self.stack_size:]
+            if self.count - self.startIdx > self.startIdx: # Start perception only when a new stack is filled
+                stack = self.core[:, self.count - self.stack_size:] # Slice of last self.stack_size elements
                 mean, std = np.mean(stack, axis=1), np.std(stack, axis=1)
-                kl_div = {}
-                for pck in self.percept_classes.keys():
-                    kl_div[pck] = KL_divergence_normal((mean, std), self.percept_classes[pck])
-                # TODO compute gradient to motion parameters
+                kl_div = np.zeros(len(self.percept_classes))
+                for i, pck in enumerate(self.percept_classes.keys()):
+                    kl_div[i] = KL_divergence_normal((mean, std), self.percept_classes[pck])
+                # TODO: Compute gradient to input stimulus
+                if self.previous_kl_div is not None:
+                    gradient = kl_div - self.previous_kl_div
         
         else: # Without prior, training mode
             # TODO Training mode append new data for HOOI

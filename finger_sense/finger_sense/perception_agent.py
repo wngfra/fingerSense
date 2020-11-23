@@ -73,7 +73,7 @@ class PerceptionAgent(Node):
 
         # Load knowledge base
         self.perceptum = Perceptum(
-            [core_dir, factor_dir, info_dir], n_basis, 32, 'Gaussian')
+            [core_dir, factor_dir, info_dir], n_basis, 16, 'Gaussian')
 
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
