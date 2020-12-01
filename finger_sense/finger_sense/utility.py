@@ -30,3 +30,39 @@ def error_ellipsoid(A, scaling_factor=1.0):
     zs = points[:, 200:300] + center[2]
 
     return xs, ys, zs, center, U, W
+
+
+def KL_divergence_normal(p, q):
+    '''
+        Compute analytical KL-divergence of two multivariate normal distribution
+
+        ...
+
+        Parameters
+        ----------
+        p : list
+            True distribution mean and std
+        q : numpy.array
+            Anticipated distribution mean and std
+
+        Returns
+        -------
+        divergence : numpy.array
+            Computed D_{KL}(p||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p}+
+    '''
+    mu_p, mu_q = p[0], q[0]
+    sigma_p, sigma_q = p[1], q[1]
+
+    k = mu_p.shape
+
+    if k != mu_q.shape:
+        raise ValueError('dimension mismatch')
+
+    return 0.5 * (
+        np.log(LA.det(sigma_q)/LA.det(sigma_p)) - k +
+        np.dot(np.dot((mu_p - mu_q).transpose(), LA.inv(sigma_q)), (mu_p - mu_q)) +
+        np.trace(np.dot(LA.inv(sigma_q), sigma_p)))
+
+
+def normalize(x, axis):
+    return (x - np.mean(x, axis=axis, keepdims=True)) / np.std(x, axis=axis, keepdims=True)

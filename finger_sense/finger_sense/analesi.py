@@ -1,59 +1,37 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from tensorly.tenalg import mode_dot
-from tensorly.decomposition import tucker
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import jax
+import jax.numpy as jnp
+import jax.numpy.linalg as LA
+from jax import random
+from jax import jit
 
 from utility import error_ellipsoid, KL_divergence_normal
 
 
-def knowledge_test():
-    core = np.load('core.npy', allow_pickle=True)
-    info = pd.read_csv('info.csv', delimiter=',')
-    cids = info['class_id']
+def KL_div_normal(p, q, y0, n):
+    mu_p, mu_q = p[0], q[0]
+    sigma_p, sigma_q = p[1], q[1]
 
-    fig = plt.figure()
+    @jit
+    def KL_div(y):
+        mu_p_new = mu_p + (y - y0)/n
+        sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
+        
+        k = 3
 
-    for i, cid in enumerate(set(cids)):
-        data = core[:, :, cid == cids].squeeze()
-        x, y, z, center, _, W = error_ellipsoid(data, 0.1)
-        ax = fig.add_subplot(1, len(set(cids)), i+1, projection='3d')
-        ax.scatter(data[0, :], data[1, :], data[2, :])
-        ax.plot_surface(x, y, z, alpha=0.2)
-        print(center, W)
-
-    plt.show()
-
-
-def kl_div_test():
-    p = np.random.rand(10000, 100)
-    q = np.random.rand(10000, 100)
-    kl_div = KL_divergence_normal(p, q)
-
-    return kl_div
-
-
-def bar_plot_test():
-    import matplotlib.pyplot as plt
-    plt.rcdefaults()
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    p = np.array(10)
-
-    objects = {'Python':10, 'C++':9, 'Java':8, 'Perl':7, 'Scala':6, 'Lisp':2}
-    y_pos = np.arange(len(objects))
-
-    plt.bar(y_pos, objects.values(), align='center', alpha=0.5)
-    plt.xticks(y_pos, objects.keys())
-    plt.ylabel('Usage')
-    plt.title('Programming language usage')
-
-    plt.show()
+        return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
+    
+    return KL_div
 
 
 if __name__ == '__main__':
-    bar_plot_test()
+    key = random.PRNGKey(0)
+    p = [random.normal(key, [3, 1]) + 100, random.normal(key, [3, 3]) + 10]
+    q = [random.normal(key, [3, 1]) + 100, random.normal(key, [3, 3]) + 10]
+    y0 = random.normal(key, [3, 1]) + 200
+    y = random.normal(key, [3, 1]) + 50
+    n = 32
+
+    fun = KL_div_normal(p, q, y0, n)
+    jac = jax.jacfwd(fun)(y)
+
+    print(jac)

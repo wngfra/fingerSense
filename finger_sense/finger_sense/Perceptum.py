@@ -6,42 +6,7 @@ from skfda import FDataGrid
 from skfda.representation.basis import Fourier
 from tensorly.tenalg import mode_dot
 
-
-def KL_divergence_normal(p, q):
-    '''
-        Compute analytical KL-divergence of two multivariate normal distribution
-
-        ...
-
-        Parameters
-        ----------
-        p : list
-            True distribution mean and std
-        q : numpy.array
-            Anticipated distribution mean and std
-
-        Returns
-        -------
-        divergence : numpy.array
-            Computed D_{KL}(p||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p}+
-    '''
-    mu_p, mu_q = p[0], q[0]
-    sigma_p, sigma_q = p[1], q[1]
-
-    k = mu_p.shape
-
-    if k != mu_q.shape:
-        raise ValueError('dimension mismatch')
-
-    return 0.5 * (
-        np.log(LA.det(sigma_q)/LA.det(sigma_p)) - k +
-        np.dot(np.dot((mu_p - mu_q).transpose(), LA.inv(sigma_q)), (mu_p - mu_q)) +
-        np.trace(np.dot(LA.inv(sigma_q), sigma_p)))
-
-
-def normalize(x, axis):
-    return (x - np.mean(x, axis=axis, keepdims=True)) / np.std(x, axis=axis, keepdims=True)
-
+from finger_sense.utility import KL_divergence_normal, normalize
 
 class Perceptum:
 
@@ -62,7 +27,8 @@ class Perceptum:
                 Directories of core, factors, info files
         '''
         if dirs is not None:
-            self.core = np.load(dirs[0], allow_pickle=True).squeeze() # in shape (latent_dim, data_size)
+            # in shape (latent_dim, data_size)
+            self.core = np.load(dirs[0], allow_pickle=True).squeeze()
             self.factors = np.load(dirs[1], allow_pickle=True)[0:2]
             info = pd.read_csv(dirs[2], delimiter=',')
 
@@ -87,7 +53,7 @@ class Perceptum:
             self.startIdx = 0
 
         self.count = self.startIdx
-        self.previous_kl_div = None # Record previous KL_divergence for all percept classes
+        self.previous_kl_div = None  # Record previous KL_divergence for all percept classes
 
     def basis_expand(self, data_matrix):
         '''
@@ -151,22 +117,25 @@ class Perceptum:
                 Input stimulus matrix in shape (self.stack_size, channel_size)
         '''
         coeff_cov = self.basis_expand(T)
-        
-        if self.factors is not None: # With loaded prior knowledge base
+
+        if self.factors is not None:  # With loaded prior knowledge base
             latent = self.compress(coeff_cov).reshape(1, -1)
-            self.core = np.hstack((self.core, latent.transpose())) # in shape (latent_dim, data_size + 1)
+            # in shape (latent_dim, data_size + 1)
+            self.core = np.hstack((self.core, latent.transpose()))
             self.count += 1
 
-            if self.count - self.startIdx > self.startIdx: # Start perception only when a new stack is filled
-                stack = self.core[:, self.count - self.stack_size:] # Slice of last self.stack_size elements
+            if self.count - self.startIdx > self.startIdx:  # Start perception only when a new stack is filled
+                # Slice of last self.stack_size elements
+                stack = self.core[:, self.count - self.stack_size:]
                 mean, std = np.mean(stack, axis=1), np.std(stack, axis=1)
                 kl_div = np.zeros(len(self.percept_classes))
                 for i, pck in enumerate(self.percept_classes.keys()):
-                    kl_div[i] = KL_divergence_normal((mean, std), self.percept_classes[pck])
+                    kl_div[i] = KL_divergence_normal(
+                        (mean, std), self.percept_classes[pck])
                 # TODO: Compute gradient to input stimulus
                 if self.previous_kl_div is not None:
                     gradient = kl_div - self.previous_kl_div
-        
-        else: # Without prior, training mode
+
+        else:  # Without prior, training mode
             # TODO Training mode append new data for HOOI
             pass
