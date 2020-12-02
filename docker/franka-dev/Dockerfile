@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
 
 RUN pip3 install -U\
     argcomplete \
+    jax \
+    jaxlib==0.1.57+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
     pandas \
     pyqt5 \
     pyside2 \
@@ -40,7 +42,8 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
 
 # Create a non-root user
 RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu \
-    && echo 'source "/opt/ros/$ROS_DISTRO/setup.bash"' >> /ubuntu/.bashrc
+    && echo 'source "/opt/ros/$ROS_DISTRO/setup.bash"' >> /ubuntu/.bashrc \
+    && echo 'export XLA_PYTHON_CLIENT_MEM_FRACTION=.60' >> /ubuntu/.bashrc
 
 # Change default user
 WORKDIR /ubuntu/ros2_ws
