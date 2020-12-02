@@ -1,3 +1,5 @@
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
@@ -27,11 +29,11 @@ class Perceptum:
                 Directories of core, factors, info files
         '''
         if dirs is not None:
-            # in shape (latent_dim, data_size)
-            self.core = np.load(dirs[0], allow_pickle=True).squeeze()
+            self.core = np.load(dirs[0], allow_pickle=True).squeeze() # in shape (latent_dim, data_size)
             self.factors = np.load(dirs[1], allow_pickle=True)[0:2]
-            info = pd.read_csv(dirs[2], delimiter=',')
+            self.percept_classes = {}
 
+            info = pd.read_csv(dirs[2], delimiter=',')
             class_names = info['class_name']
 
             '''
@@ -44,7 +46,7 @@ class Perceptum:
                 std = np.std(data, axis=1)
                 self.percept_classes[cn] = [mean, std]
 
-            self.startIdx = self.core.shape[1]
+            self.startIdx = self.core.shape[1] # Set starting index to skip training data
         else:
             self.core = None
             self.factors = None
@@ -53,7 +55,6 @@ class Perceptum:
             self.startIdx = 0
 
         self.count = self.startIdx
-        self.previous_kl_div = None  # Record previous KL_divergence for all percept classes
 
     def basis_expand(self, data_matrix):
         '''
@@ -72,6 +73,8 @@ class Perceptum:
                 Coefficients of functional basis representation
         '''
         normalized_data = normalize(data_matrix, axis=1)
+
+        # FIXME: dimension error to fix
         fd = FDataGrid(normalized_data.transpose()).to_basis(self.basis)
         coeffs = fd.coefficients
         coeff_cov = np.cov(coeffs[:, 1:].transpose())
@@ -116,25 +119,25 @@ class Perceptum:
             T : numpy.array
                 Input stimulus matrix in shape (self.stack_size, channel_size)
         '''
-        coeff_cov = self.basis_expand(T)
-
         if self.factors is not None:  # With loaded prior knowledge base
+            coeff_cov = self.basis_expand(T)
             latent = self.compress(coeff_cov).reshape(1, -1)
-            # in shape (latent_dim, data_size + 1)
-            self.core = np.hstack((self.core, latent.transpose()))
-            self.count += 1
 
-            if self.count - self.startIdx > self.startIdx:  # Start perception only when a new stack is filled
+            if self.count - self.startIdx > self.stack_size:  # Start perception only when a new stack is filled
                 # Slice of last self.stack_size elements
                 stack = self.core[:, self.count - self.stack_size:]
-                mean, std = np.mean(stack, axis=1), np.std(stack, axis=1)
-                kl_div = np.zeros(len(self.percept_classes))
-                for i, pck in enumerate(self.percept_classes.keys()):
-                    kl_div[i] = KL_divergence_normal(
-                        (mean, std), self.percept_classes[pck])
-                # TODO: Compute gradient to input stimulus
-                if self.previous_kl_div is not None:
-                    gradient = kl_div - self.previous_kl_div
+                p = np.mean(stack, axis=1), np.std(stack, axis=1)
+                y0 = self.core[:, self.count - self.stack_size]
+
+                for i, key in enumerate(self.percept_classes.keys()):
+                    q = self.percept_classes[key]
+                    KL_div = KL_divergence_normal(p, q, y0, self.stack_size)
+                    KL_jacobian = jax.jacfwd(KL_div)(latent)
+                    # TODO: compute gradient w.r.t. control parameters
+
+            # Append new latent vector to the core
+            self.core = np.hstack((self.core, latent))
+            self.count += 1
 
         else:  # Without prior, training mode
             # TODO Training mode append new data for HOOI

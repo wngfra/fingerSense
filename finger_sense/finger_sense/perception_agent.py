@@ -92,17 +92,18 @@ class PerceptionAgent(Node):
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
 
+                # TODO: adaptive control
                 self.perceptum.perceive(self.tactile_stack)
 
-        if self.count % self.stack_size == 0:
-            distance, force, speed = 0.25, 2.0, 0.1 * np.random.rand()
-            if self.count >= 960:
-                speed = 0.0
-                self.get_logger().info('Motion finished.')
-            try:
-                self.send_request(distance, force, speed)
-            except Exception as e:
-                self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+                if self.count % self.stack_size == 0:
+                    distance, force, speed = 0.25, 2.0, 0.1 * np.random.rand()
+                    if self.count >= 960:
+                        speed = 0.0
+                        self.get_logger().info('Motion finished.')
+                    try:
+                        self.send_request(distance, force, speed)
+                    except Exception as e:
+                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
     def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''

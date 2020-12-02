@@ -4,6 +4,10 @@
 import numpy as np
 from numpy import linalg as LA
 
+import jax.numpy as jnp
+import jax.numpy.linalg as jLA
+from jax import jit
+
 
 def error_ellipsoid(A, scaling_factor=1.0):
     '''
@@ -32,7 +36,7 @@ def error_ellipsoid(A, scaling_factor=1.0):
     return xs, ys, zs, center, U, W
 
 
-def KL_divergence_normal(p, q):
+def KL_divergence_normal(p, q, y0, n):
     '''
         Compute analytical KL-divergence of two multivariate normal distribution
 
@@ -41,27 +45,36 @@ def KL_divergence_normal(p, q):
         Parameters
         ----------
         p : list
-            True distribution mean and std
-        q : numpy.array
-            Anticipated distribution mean and std
+            Sampling distribution mean and std
+        q : list
+            True distribution mean and std of one percept
+        y0 : numpy.array
+            Old data to be replaced
+        n : int
+            Length of data
 
         Returns
         -------
-        divergence : numpy.array
-            Computed D_{KL}(p||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p}+
+        KL_div : function
+            A closure to compute updated D_{KL}(p_new||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p} over a new input data
     '''
-    mu_p, mu_q = p[0], q[0]
-    sigma_p, sigma_q = p[1], q[1]
+    mu_p, mu_q = jnp.array(p[0]), jnp.array(q[0])
+    sigma_p, sigma_q = jnp.array(p[1]), jnp.array(q[1])
 
-    k = mu_p.shape
-
-    if k != mu_q.shape:
+    if mu_p.shape != mu_q.shape:
         raise ValueError('dimension mismatch')
 
-    return 0.5 * (
-        np.log(LA.det(sigma_q)/LA.det(sigma_p)) - k +
-        np.dot(np.dot((mu_p - mu_q).transpose(), LA.inv(sigma_q)), (mu_p - mu_q)) +
-        np.trace(np.dot(LA.inv(sigma_q), sigma_p)))
+    @jit
+    def KL_div(y):
+        y = jnp.array(y)
+        mu_p_new = mu_p + (y - y0)/n
+        sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
+
+        k = y.shape[0]
+
+        return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
+
+    return KL_div
 
 
 def normalize(x, axis):
