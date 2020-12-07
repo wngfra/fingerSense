@@ -19,13 +19,12 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
 
 RUN pip3 install -U\
     argcomplete \
-    jax \
-    jaxlib==0.1.57+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html \
     pandas \
     pyqt5 \
     pyside2 \
     scikit-fda \
     tensorly
+RUN pip3 install --upgrade jax jaxlib==0.1.57+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Download, build and install mayavi
 RUN git clone https://github.com/enthought/mayavi.git /usr/src/mayavi
