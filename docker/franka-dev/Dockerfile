@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-pip \
     python3-tk \
     ros-$ROS_DISTRO-gazebo-ros-pkgs
-    && rm -rf /var/lib/apt/lists/*
+RUN rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
     argcomplete \
