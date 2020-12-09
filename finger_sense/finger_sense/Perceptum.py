@@ -55,6 +55,8 @@ class Perceptum:
             self.startIdx = 0
 
         self.count = self.startIdx
+        self.jacobian = jax.jacfwd(KL_divergence_normal, 0)
+        self.latent_dim = self.core.shape[0]
 
     def basis_expand(self, data_matrix):
         '''
@@ -118,27 +120,34 @@ class Perceptum:
             ----------
             T : numpy.array
                 Input stimulus matrix in shape (self.stack_size, channel_size)
+
+            Returns
+            -------
+            gradients : numpy.array
+                Gradients with respect to the input signals
         '''
         if self.factors is not None:  # With loaded prior knowledge base
             coeff_cov = self.basis_expand(T)
             latent = self.compress(coeff_cov).reshape(1, -1)
+
+            # Append new latent vector to the core
+            self.core = np.hstack((self.core, latent))
+            self.count += 1
 
             if self.count - self.startIdx > self.stack_size:  # Start perception only when a new stack is filled
                 # Slice of last self.stack_size elements
                 stack = self.core[:, self.count - self.stack_size:]
                 p = np.mean(stack, axis=1), np.std(stack, axis=1)
                 y0 = self.core[:, self.count - self.stack_size]
+                gradients = np.zeros(self.latent_dim, len(self.percept_classes))
 
+                # Compute gradient of control parameters for each percept_class
                 for i, key in enumerate(self.percept_classes.keys()):
                     q = self.percept_classes[key]
-                    KL_div = KL_divergence_normal(p, q, y0, self.stack_size)
-                    KL_jacobian = jax.jacfwd(KL_div)(latent)
-                    # TODO: compute gradient w.r.t. control parameters
-
-            # Append new latent vector to the core
-            self.core = np.hstack((self.core, latent))
-            self.count += 1
+                    gradients[:, i] = self.jacobian(latent, p, q, y0, self.stack_size)
+                
+                return gradients
 
         else:  # Without prior, training mode
             # TODO Training mode append new data for HOOI
-            pass
+            return None

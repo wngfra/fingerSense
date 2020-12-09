@@ -36,7 +36,8 @@ def error_ellipsoid(A, scaling_factor=1.0):
     return xs, ys, zs, center, U, W
 
 
-def KL_divergence_normal(p, q, y0, n):
+@jit
+def KL_divergence_normal(y, p, q, y0, n):
     '''
         Compute analytical KL-divergence of two multivariate normal distribution
 
@@ -44,6 +45,8 @@ def KL_divergence_normal(p, q, y0, n):
 
         Parameters
         ----------
+        y : numpy.array
+            Input data to compute jacobian
         p : list
             Sampling distribution mean and std
         q : list
@@ -61,20 +64,15 @@ def KL_divergence_normal(p, q, y0, n):
     mu_p, mu_q = jnp.array(p[0]), jnp.array(q[0])
     sigma_p, sigma_q = jnp.array(p[1]), jnp.array(q[1])
 
-    if mu_p.shape != mu_q.shape:
+    if mu_p.shape != mu_q.shape or sigma_p.shape != sigma_q.shape:
         raise ValueError('dimension mismatch')
 
-    @jit
-    def KL_div(y):
-        y = jnp.array(y)
-        mu_p_new = mu_p + (y - y0)/n
-        sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
-
-        k = y.shape[0]
-
-        return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
-
-    return KL_div
+    y = jnp.array(y)
+    mu_p_new = mu_p + (y - y0)/n
+    sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
+    k = y.shape[0]
+    
+    return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
 
 
 def normalize(x, axis):
