@@ -1,14 +1,13 @@
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
-from numpy import linalg as LA
 from skfda import FDataGrid
 from skfda.representation.basis import Fourier
 from tensorly.tenalg import mode_dot
 
 from finger_sense.utility import KL_divergence_normal, normalize
+
 
 class Perceptum:
 
@@ -29,7 +28,8 @@ class Perceptum:
                 Directories of core, factors, info files
         '''
         if dirs is not None:
-            self.core = np.load(dirs[0], allow_pickle=True).squeeze() # in shape (latent_dim, data_size)
+            # in shape (latent_dim, data_size)
+            self.core = np.load(dirs[0], allow_pickle=True).squeeze()
             self.factors = np.load(dirs[1], allow_pickle=True)[0:2]
             self.percept_classes = {}
 
@@ -46,7 +46,8 @@ class Perceptum:
                 std = np.std(data, axis=1)
                 self.percept_classes[cn] = [mean, std]
 
-            self.startIdx = self.core.shape[1] # Set starting index to skip training data
+            # Set starting index to skip training data
+            self.startIdx = self.core.shape[1]
         else:
             self.core = None
             self.factors = None
@@ -125,6 +126,10 @@ class Perceptum:
             -------
             gradients : numpy.array
                 Gradients with respect to the input signals
+            weights : numpy.array
+                Weights of graidents to update control parameter
+            delta_latent : numpy.array
+                Difference between current and last latent vectors
         '''
         if self.factors is not None:  # With loaded prior knowledge base
             coeff_cov = self.basis_expand(T)
@@ -139,15 +144,22 @@ class Perceptum:
                 stack = self.core[:, self.count - self.stack_size:]
                 p = np.mean(stack, axis=1), np.std(stack, axis=1)
                 y0 = self.core[:, self.count - self.stack_size]
-                gradients = np.zeros(self.latent_dim, len(self.percept_classes))
 
-                # Compute gradient of control parameters for each percept_class
+                divergences = np.zeros(len(self.percept_classes))
+                gradients = np.zeros((len(self.percept_classes), self.latent_dim))
+
+                # Compute gradients and weights for each percept_class
                 for i, key in enumerate(self.percept_classes.keys()):
                     q = self.percept_classes[key]
-                    gradients[:, i] = self.jacobian(latent, p, q, y0, self.stack_size)
-                
-                return gradients
+                    divergences[i] = KL_divergence_normal(latent, p, q, y0, self.stack_size)
+                    gradients[i, :] = self.jacobian(latent, p, q, y0, self.stack_size)
+                exp = np.exp(-divergences)
+                weights = np.reshape(exp / np.sum(exp), (-1, 1))
+
+                delta_latent = self.core[:, -1] - self.core[:, -2]
+
+                return gradients, weights, delta_latent
 
         else:  # Without prior, training mode
             # TODO Training mode append new data for HOOI
-            return None
+            return None, None

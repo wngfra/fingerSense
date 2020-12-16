@@ -58,8 +58,8 @@ def KL_divergence_normal(y, p, q, y0, n):
 
         Returns
         -------
-        KL_div : function
-            A closure to compute updated D_{KL}(p_new||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p} over a new input data
+        Result : float
+            Computed divergence D_{KL}(p_new||q) = 1/2 * [log(det(\Sigma_q|)/|det(\Sigma_p)) - k + (\mu_p - \mu_q)^T \Sigma_q^{-1} (\mu_p - \mu_q) + trace{\Sigma_q^{-1} \Sigma_p}
     '''
     mu_p, mu_q = jnp.array(p[0]), jnp.array(q[0])
     sigma_p, sigma_q = jnp.array(p[1]), jnp.array(q[1])

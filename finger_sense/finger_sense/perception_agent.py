@@ -57,11 +57,14 @@ class PerceptionAgent(Node):
 
         self.create_knowledge_base()
 
+        self.prev_control_params = np.zeros((1, 2))
+        self.current_control_params = np.zeros((1, 2))
+
         # fig = plt.figure(figsize=(8, 6), dpi=80)
         # self.ax1 = fig.add_subplot(111)
 
     def create_knowledge_base(self):
-        # Knowledge base directory
+        # Parse directory
         core_dir = self.get_parameter(
             'core_dir').get_parameter_value().string_value
         factor_dir = self.get_parameter(
@@ -92,11 +95,14 @@ class PerceptionAgent(Node):
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
 
-                # TODO: adaptive control
-                self.perceptum.perceive(self.tactile_stack)
+                # Update control parameters
+                gradients, weights, delta_latent = self.perceptum.perceive(self.tactile_stack)
+                new_control = weights * np.matmul(gradients, np.outer(delta_latent, self.current_control_params - self.prev_control_params))
+                self.prev_control_params = self.current_control_params
+                self.current_control_params = new_control
 
                 if self.count % self.stack_size == 0:
-                    distance, force, speed = 0.25, 2.0, 0.1 * np.random.rand()
+                    distance, force, speed = 0.25, new_control[0], new_control[1]
                     if self.count >= 960:
                         speed = 0.0
                         self.get_logger().info('Motion finished.')
