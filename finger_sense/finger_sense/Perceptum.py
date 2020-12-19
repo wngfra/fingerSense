@@ -4,6 +4,7 @@ import pandas as pd
 
 from skfda import FDataGrid
 from skfda.representation.basis import Fourier
+from tensorly.decomposition import tucker
 from tensorly.tenalg import mode_dot
 
 from finger_sense.utility import KL_divergence_normal, normalize
@@ -54,6 +55,7 @@ class Perceptum:
             self.info = None
             self.percept_classes = None
             self.startIdx = 0
+            self.train_stack = np.zeros((n_basis, n_basis, 1))
 
         self.count = self.startIdx
         self.jacobian = jax.jacfwd(KL_divergence_normal, 0)
@@ -77,14 +79,13 @@ class Perceptum:
         '''
         normalized_data = normalize(data_matrix, axis=1)
 
-        # FIXME: dimension error to fix
         fd = FDataGrid(normalized_data.transpose()).to_basis(self.basis)
-        coeffs = fd.coefficients
+        coeffs = fd.coefficients.astype(np.float32).squeeze()
         coeff_cov = np.cov(coeffs[:, 1:].transpose())
 
         return coeff_cov
 
-    def compress(self, A):
+    def compress(self, T):
         '''
             Project tensor to lower rank matrices
             Factor matrices are obtained from tucker decomposition
@@ -93,25 +94,25 @@ class Perceptum:
 
             Parameters
             ----------
-            A : numpy.array
+            T : numpy.array
                 Input tensor
             factors : list of numpy.array
                 Factors matrices
 
             Returns
             -------
-            A : numpy.array
+            T : numpy.array
                 Projected tensor
         '''
         if self.factors is not None:
             for i in range(len(self.factors)):
-                A = mode_dot(A, self.factors[i].transpose(), i)
+                T = mode_dot(T, self.factors[i].transpose(), i)
 
-            return A
+            return T
         else:
             return None
 
-    def perceive(self, T, mode=None):
+    def perceive(self, M, mode=None):
         '''
             Perceive and process stimulus
 
@@ -119,8 +120,10 @@ class Perceptum:
 
             Parameters
             ----------
-            T : numpy.array
+            M : numpy.array
                 Input stimulus matrix in shape (self.stack_size, channel_size)
+            mode : string
+                Perception mode switch (None or 'train')
 
             Returns
             -------
@@ -131,9 +134,16 @@ class Perceptum:
             delta_latent : numpy.array
                 Difference between current and last latent vectors
         '''
-        if self.factors is not None:  # With loaded prior knowledge base
-            coeff_cov = self.basis_expand(T)
-            latent = self.compress(coeff_cov).reshape(1, -1)
+        coeff_cov = self.basis_expand(M)
+
+        if mode is not 'train':  # With loaded prior knowledge base
+            if self.core is None:
+                self.core, self.factors = tucker(self.train_stack, ranks=(3, 1, -1))
+
+            try:
+                latent = self.compress(coeff_cov).reshape(1, -1)
+            except:
+                ValueError
 
             # Append new latent vector to the core
             self.core = np.hstack((self.core, latent))
@@ -161,5 +171,6 @@ class Perceptum:
                 return gradients, weights, delta_latent
 
         else:  # Without prior, training mode
-            # TODO Training mode append new data for HOOI
-            return None, None
+            self.train_stack = np.append(self.train_stack, coeff_cov, axis=2)
+
+            return None, None, None
