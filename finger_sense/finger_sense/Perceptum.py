@@ -16,6 +16,8 @@ class Perceptum:
         self.model_name = model_name  # default gaussian model
         self.basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
         self.stack_size = stack_size
+        self.train_stack = np.zeros((n_basis, n_basis, 1))
+
         self.init_model(dirs)
 
     def init_model(self, dirs):
@@ -43,9 +45,9 @@ class Perceptum:
             '''
             for cn in set(class_names):
                 data = self.core[:, class_names == cn]
-                mean = np.mean(data, axis=1)
-                std = np.std(data, axis=1)
-                self.percept_classes[cn] = [mean, std]
+                mean = np.mean(data, axis=1, keepdims=True)
+                cov = np.cov(data)
+                self.percept_classes[cn] = [mean, cov]
 
             # Set starting index to skip training data
             self.startIdx = self.core.shape[1]
@@ -55,7 +57,6 @@ class Perceptum:
             self.info = None
             self.percept_classes = None
             self.startIdx = 0
-            self.train_stack = np.zeros((n_basis, n_basis, 1))
 
         self.count = self.startIdx
         self.jacobian = jax.jacfwd(KL_divergence_normal, 0)
@@ -106,7 +107,7 @@ class Perceptum:
         '''
         if self.factors is not None:
             for i in range(len(self.factors)):
-                T = mode_dot(T, self.factors[i].transpose(), i)
+                T = mode_dot(T, self.factors[i].T, i)
 
             return T
         else:
@@ -136,12 +137,13 @@ class Perceptum:
         '''
         coeff_cov = self.basis_expand(M)
 
-        if mode is not 'train':  # With loaded prior knowledge base
+        if mode != 'train':  # With loaded prior knowledge base
             if self.core is None:
-                self.core, self.factors = tucker(self.train_stack, ranks=(3, 1, -1))
+                self.core, self.factors = tucker(
+                    self.train_stack, ranks=(3, 1, -1))
 
             try:
-                latent = self.compress(coeff_cov).reshape(1, -1)
+                latent = self.compress(coeff_cov)
             except:
                 ValueError
 
@@ -149,26 +151,29 @@ class Perceptum:
             self.core = np.hstack((self.core, latent))
             self.count += 1
 
+            gradients = np.zeros((len(self.percept_classes), self.latent_dim))
+            weights = np.zeros((len(self.percept_classes), 1))
+            delta_latent = self.core[:, -1] - self.core[:, -2]
+
             if self.count - self.startIdx > self.stack_size:  # Start perception only when a new stack is filled
                 # Slice of last self.stack_size elements
                 stack = self.core[:, self.count - self.stack_size:]
-                p = np.mean(stack, axis=1), np.std(stack, axis=1)
-                y0 = self.core[:, self.count - self.stack_size]
+                p = np.mean(stack, axis=1, keepdims=True), np.cov(stack)
+                y0 = self.core[:, self.count - self.stack_size].reshape(-1, 1)
 
                 divergences = np.zeros(len(self.percept_classes))
-                gradients = np.zeros((len(self.percept_classes), self.latent_dim))
 
                 # Compute gradients and weights for each percept_class
                 for i, key in enumerate(self.percept_classes.keys()):
                     q = self.percept_classes[key]
-                    divergences[i] = KL_divergence_normal(latent, p, q, y0, self.stack_size)
-                    gradients[i, :] = self.jacobian(latent, p, q, y0, self.stack_size)
+                    divergences[i] = KL_divergence_normal(
+                        latent, p, q, y0, self.stack_size)
+                    gradients[i, :] = self.jacobian(
+                        latent, p, q, y0, self.stack_size).reshape(1, -1)
                 exp = np.exp(-divergences)
                 weights = np.reshape(exp / np.sum(exp), (-1, 1))
 
-                delta_latent = self.core[:, -1] - self.core[:, -2]
-
-                return gradients, weights, delta_latent
+            return gradients, weights, delta_latent
 
         else:  # Without prior, training mode
             self.train_stack = np.append(self.train_stack, coeff_cov, axis=2)

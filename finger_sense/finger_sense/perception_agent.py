@@ -97,9 +97,12 @@ class PerceptionAgent(Node):
 
                 # Update control parameters
                 gradients, weights, delta_latent = self.perceptum.perceive(self.tactile_stack)
-                new_control = weights * np.matmul(gradients, np.outer(delta_latent, self.current_control_params - self.prev_control_params))
+                # REVIEW (7,3) (7,1) (3,)
+                new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(self.current_control_params - self.prev_control_params))), axis=1)
+
                 self.prev_control_params = self.current_control_params
                 self.current_control_params = new_control
+
 
                 if self.count % self.stack_size == 0:
                     distance, force, speed = 0.25, new_control[0], new_control[1]

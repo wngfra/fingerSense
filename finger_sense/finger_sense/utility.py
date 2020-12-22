@@ -68,11 +68,13 @@ def KL_divergence_normal(y, p, q, y0, n):
         raise ValueError('dimension mismatch')
 
     y = jnp.array(y)
+    y0 = jnp.array(y0)
+
     mu_p_new = mu_p + (y - y0)/n
     sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
     k = y.shape[0]
-    
-    return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
+
+    return 0.5 * (jnp.log(jLA.det(sigma_q)/jLA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).T, jLA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(jLA.inv(sigma_q), sigma_p_new)) )
 
 
 def normalize(x, axis):

@@ -14,7 +14,7 @@ def KL_div_normal(y, p, q, y0, n):
 
     mu_p_new = mu_p + (y - y0)/n
     sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
-    
+
     k = y.shape[0]
     return 0.5 * (jnp.log(LA.det(sigma_q)/LA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).transpose(), LA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(LA.inv(sigma_q), sigma_p_new)))
 
