@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 
         sliding_controller.set_stiffness({{3500, 300, 1000, 300, 300, 300}}, 1.0);
 
-        while (*speed >= 0.0)
+        while (*speed > 0.0)
         {
             RCLCPP_INFO(server_handler->get_logger(), "distance: %f, force: %f, speed: %f", *distance, *force, *speed);
             sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1); 

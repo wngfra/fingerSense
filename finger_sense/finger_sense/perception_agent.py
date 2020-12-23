@@ -58,7 +58,7 @@ class PerceptionAgent(Node):
         self.create_knowledge_base()
 
         self.prev_control_params = np.zeros((1, 2))
-        self.current_control_params = np.zeros((1, 2))
+        self.current_control_params = np.random.rand(1, 2) * 0.01
 
         # fig = plt.figure(figsize=(8, 6), dpi=80)
         # self.ax1 = fig.add_subplot(111)
@@ -96,23 +96,23 @@ class PerceptionAgent(Node):
                 self.tactile_stack[-1] = item
 
                 # Update control parameters
-                gradients, weights, delta_latent = self.perceptum.perceive(self.tactile_stack)
-                # REVIEW (7,3) (7,1) (3,)
-                new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(self.current_control_params - self.prev_control_params))), axis=1)
+                if self.count <= 100:
+                    self.perceptum.perceive(self.tactile_stack, mode='train')
+                else:
+                    gradients, weights, delta_latent = self.perceptum.perceive(self.tactile_stack)
+                    new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(self.current_control_params - self.   prev_control_params))), axis=0)
+                    self.prev_control_params = self.current_control_params
+                    self.current_control_params = new_control
 
-                self.prev_control_params = self.current_control_params
-                self.current_control_params = new_control
-
-
-                if self.count % self.stack_size == 0:
-                    distance, force, speed = 0.25, new_control[0], new_control[1]
-                    if self.count >= 960:
-                        speed = 0.0
-                        self.get_logger().info('Motion finished.')
-                    try:
-                        self.send_request(distance, force, speed)
-                    except Exception as e:
-                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+                    if self.count % self.stack_size == 0:
+                        distance, force, speed = 0.25, new_control[0], new_control[1]
+                        if self.count >= 960:
+                            speed = 0.0
+                            self.get_logger().info('Motion finished.')
+                        try:
+                            self.send_request(distance, force, speed)
+                        except Exception as e:
+                            self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
     def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''

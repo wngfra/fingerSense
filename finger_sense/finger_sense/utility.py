@@ -69,6 +69,7 @@ def KL_divergence_normal(y, p, q, y0, n):
 
     y = jnp.array(y)
     y0 = jnp.array(y0)
+    print(y, y0)
 
     mu_p_new = mu_p + (y - y0)/n
     sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n

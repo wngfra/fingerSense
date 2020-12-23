@@ -16,9 +16,10 @@ class Perceptum:
         self.model_name = model_name  # default gaussian model
         self.basis = Fourier([0, 2 * np.pi], n_basis=n_basis, period=1)
         self.stack_size = stack_size
-        self.train_stack = np.zeros((n_basis, n_basis, 1))
+        self.train_stack = []
+        self.latent_dim = 3
 
-        self.init_model(dirs)
+        self.init_model(None)
 
     def init_model(self, dirs):
         '''
@@ -60,7 +61,6 @@ class Perceptum:
 
         self.count = self.startIdx
         self.jacobian = jax.jacfwd(KL_divergence_normal, 0)
-        self.latent_dim = self.core.shape[0]
 
     def basis_expand(self, data_matrix):
         '''
@@ -106,7 +106,7 @@ class Perceptum:
                 Projected tensor
         '''
         if self.factors is not None:
-            for i in range(len(self.factors)):
+            for i in range(len(self.factors) - 1):
                 T = mode_dot(T, self.factors[i].T, i)
 
             return T
@@ -138,19 +138,19 @@ class Perceptum:
         coeff_cov = self.basis_expand(M)
 
         if mode != 'train':  # With loaded prior knowledge base
+            # TODO: add percept classes
             if self.core is None:
-                self.core, self.factors = tucker(
-                    self.train_stack, ranks=(3, 1, -1))
+                self.train_stack = np.array(self.train_stack).transpose(1, 2, 0)
+                core, self.factors = tucker(
+                    self.train_stack, ranks=(3, 1, self.count))
+                self.core = core.squeeze()
 
-            try:
-                latent = self.compress(coeff_cov)
-            except:
-                ValueError
-
+            latent = self.compress(coeff_cov)
+            
             # Append new latent vector to the core
             self.core = np.hstack((self.core, latent))
             self.count += 1
-
+            
             gradients = np.zeros((len(self.percept_classes), self.latent_dim))
             weights = np.zeros((len(self.percept_classes), 1))
             delta_latent = self.core[:, -1] - self.core[:, -2]
@@ -176,6 +176,5 @@ class Perceptum:
             return gradients, weights, delta_latent
 
         else:  # Without prior, training mode
-            self.train_stack = np.append(self.train_stack, coeff_cov, axis=2)
-
-            return None, None, None
+            self.train_stack.append(coeff_cov)
+            self.count += 1
