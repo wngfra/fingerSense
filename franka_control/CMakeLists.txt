@@ -77,7 +77,7 @@ ament_target_dependencies(sliding_parameter_server
 
 # Build apps
 set(APPS
-  mafia
+  sense_test
 )
 
 foreach(target ${APPS})

@@ -11,7 +11,7 @@ def generate_launch_description():
 
     franka_control_node = Node(
         package='franka_control',
-        executable='mafia'
+        executable='sense_test'
     )
 
     ld.add_action(signal_pub_node)

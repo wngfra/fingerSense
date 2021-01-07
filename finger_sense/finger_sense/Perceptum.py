@@ -78,7 +78,7 @@ class Perceptum:
             coeff_cov : numpy.array
                 Coefficients of functional basis representation
         '''
-        normalized_data = normalize(data_matrix, axis=1)
+        normalized_data = data_matrix # normalize(data_matrix, axis=1)
 
         fd = FDataGrid(normalized_data.transpose()).to_basis(self.basis)
         coeffs = fd.coefficients.astype(np.float32).squeeze()
@@ -135,21 +135,23 @@ class Perceptum:
             delta_latent : numpy.array
                 Difference between current and last latent vectors
         '''
-        coeff_cov = self.basis_expand(M)
+        coeff_cov = self.basis_expand(M) # TODO can raise ValueError
 
-        if mode != 'train':  # With loaded prior knowledge base
-            # TODO: add percept classes
+        if mode == 'test':  # With loaded prior knowledge base
             if self.core is None:
                 self.train_stack = np.array(self.train_stack).transpose(1, 2, 0)
                 core, self.factors = tucker(
                     self.train_stack, ranks=(3, 1, self.count))
                 self.core = core.squeeze()
+                # TODO: add percept classes
 
             latent = self.compress(coeff_cov)
             
             # Append new latent vector to the core
             self.core = np.hstack((self.core, latent))
             self.count += 1
+
+            print(self.core, latent)
             
             gradients = np.zeros((len(self.percept_classes), self.latent_dim))
             weights = np.zeros((len(self.percept_classes), 1))
@@ -175,6 +177,6 @@ class Perceptum:
 
             return gradients, weights, delta_latent
 
-        else:  # Without prior, training mode
+        elif mode == 'train':  # Without prior, training mode
             self.train_stack.append(coeff_cov)
             self.count += 1

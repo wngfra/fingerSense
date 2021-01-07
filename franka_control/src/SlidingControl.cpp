@@ -80,6 +80,9 @@ namespace franka_control
 
     franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
+        constexpr double k_p = 1e-5;
+        constexpr double k_i = 5e-6;
+
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
@@ -104,7 +107,7 @@ namespace franka_control
         }
 
         force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
-        position_d_[2] += 2e-6 * (-force_ - wrench_ext[2]) + 1e-6 * force_error_integral_;
+        position_d_[2] += k_p * (-force_ - wrench_ext[2]) + k_i * force_error_integral_;
 
         Eigen::Matrix<double, 6, 1> error;
         error.head(3) << position - position_d_;

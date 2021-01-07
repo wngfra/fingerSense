@@ -23,17 +23,18 @@ using namespace std::chrono_literals;
 
 int main(int argc, char **argv)
 {
-    double *distance = new double(0.0);
-    double *force = new double(0.0);
-    double *speed = new double(0.0);
+    double *distance = new double(0.25);
+    double *force = new double(0.1);
+    double *speed = new double(0.05);
 
+    auto bMotionFinished = std::make_shared<bool>(false);
     auto O_F_ext_hat_K = std::make_shared<std::array<double, 6>>();
     auto position = std::make_shared<std::array<double, 3>>();
     auto quaternion = std::make_shared<std::array<double, 4>>();
 
     // ROS2 initialization
     rclcpp::init(argc, argv);
-    auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(O_F_ext_hat_K, position, quaternion);
+    auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(bMotionFinished, O_F_ext_hat_K, position, quaternion);
     auto node_state_manager = franka_control::NodeStateManager("tactile_publisher_manager", "/tactile_publisher/change_state");
     auto server_handler = std::make_shared<franka_control::SlidingParameterServer>(distance, force, speed);
     std::thread thread([&]() {
@@ -70,18 +71,18 @@ int main(int argc, char **argv)
                 return sliding_controller.touch_control_callback(robot_state, period);
             });
 
-        RCLCPP_INFO(rclcpp::get_logger("mafia"), "Touched the platform.");
+        RCLCPP_INFO(rclcpp::get_logger(argv[0]), "Touched the platform.");
 
         node_state_manager.change_state(1, 0s);
         std::this_thread::sleep_for(3s);
 
         sliding_controller.set_stiffness({{3500, 300, 1000, 300, 300, 300}}, 1.0);
 
-        while (*speed > 0.0)
+        while (*speed >= 0.0)
         {
             RCLCPP_INFO(server_handler->get_logger(), "distance: %f, force: %f, speed: %f", *distance, *force, *speed);
-            sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1); 
-            /*
+            sliding_controller.set_sliding_parameter(*distance, *force, *speed, 1);
+            *bMotionFinished = false;
             robot.control(
                 [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                     getFrankaState(robot_state, *O_F_ext_hat_K, *position, *quaternion);
@@ -90,12 +91,13 @@ int main(int argc, char **argv)
                 [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
                     return sliding_controller(robot_state, period);
                 });
-            */
+            *bMotionFinished = true;
+            std::this_thread::sleep_for(0.5s);
         }
     }
     catch (const franka::Exception &e)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s", e.what());
+        RCLCPP_ERROR(rclcpp::get_logger(argv[0]), "%s", e.what());
         has_error = true;
     }
 
@@ -106,11 +108,11 @@ int main(int argc, char **argv)
         {
             robot.automaticErrorRecovery();
             has_error = false;
-            RCLCPP_INFO(rclcpp::get_logger("mafia"), "Successfully recovered from error.");
+            RCLCPP_INFO(rclcpp::get_logger(argv[0]), "Successfully recovered from error.");
         }
         catch (const franka::Exception &e)
         {
-            RCLCPP_ERROR(rclcpp::get_logger("mafia"), "%s\nAutomatic error recovery failed!", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger(argv[0]), "%s\nAutomatic error recovery failed!", e.what());
         }
     }
     robot.control(motion_generator);

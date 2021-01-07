@@ -25,13 +25,18 @@ class PerceptionAgent(Node):
                 ('save_dir', './src/fingerSense/finger_sense/finger_sense/data.npy'),
                 ('n_basis', 33),
                 ('stack_size', 64),
+                ('mode', 'train')
             ]
         )
 
         save_dir = self.get_parameter(
             'save_dir').get_parameter_value().string_value
 
+        self.mode = self.get_parameter(
+            'mode').get_parameter_value().string_value
+
         self.count = 0
+        self.motion_finished = False
         self.robot_state = np.zeros((1, 13), dtype=np.float64)
         self.save_dir = save_dir
         self.stack_size = self.get_parameter(
@@ -58,10 +63,7 @@ class PerceptionAgent(Node):
         self.create_knowledge_base()
 
         self.prev_control_params = np.zeros((1, 2))
-        self.current_control_params = np.random.rand(1, 2) * 0.01
-
-        # fig = plt.figure(figsize=(8, 6), dpi=80)
-        # self.ax1 = fig.add_subplot(111)
+        self.current_control_params = np.array([0.1, 0.01])
 
     def create_knowledge_base(self):
         # Parse directory
@@ -79,12 +81,15 @@ class PerceptionAgent(Node):
             [core_dir, factor_dir, info_dir], n_basis, 16, 'Gaussian')
 
     def robot_callback(self, msg):
+        self.motion_finished = msg.motion_finished
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
         self.robot_state[0, 6:9] = msg.position
         self.robot_state[0, 9:13] = msg.quaternion
 
     def tactile_callback(self, msg):
         item = msg.data
+
+        is_control_updated = False
 
         if item is not None:
             self.count += 1
@@ -95,24 +100,48 @@ class PerceptionAgent(Node):
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
 
-                # Update control parameters
-                if self.count <= 100:
-                    self.perceptum.perceive(self.tactile_stack, mode='train')
-                else:
-                    gradients, weights, delta_latent = self.perceptum.perceive(self.tactile_stack)
-                    new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(self.current_control_params - self.   prev_control_params))), axis=0)
-                    self.prev_control_params = self.current_control_params
-                    self.current_control_params = new_control
+                # Select perception mode
+                if self.mode == 'train':
+                    self.perceptum.perceive(self.tactile_stack, 'train')
 
-                    if self.count % self.stack_size == 0:
-                        distance, force, speed = 0.25, new_control[0], new_control[1]
-                        if self.count >= 960:
-                            speed = 0.0
-                            self.get_logger().info('Motion finished.')
-                        try:
-                            self.send_request(distance, force, speed)
-                        except Exception as e:
-                            self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+                    if self.motion_finished:
+                        force = self.current_control_params[0]
+                        speed = self.current_control_params[1]
+                        if force <= 1.0:
+                            force += 0.1
+                        if speed <= 0.1:
+                            speed += 0.01
+                        else:
+                            speed = -1.0
+                        self.prev_control_params = self.current_control_params
+                        self.current_control_params = np.array([force, speed])
+
+                        is_control_updated = True
+
+                elif self.mode == 'test':
+                    if self.motion_finished:
+                        gradients, weights, delta_latent = self.perceptum.perceive(
+                            self.tactile_stack)
+                        new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(
+                            self.current_control_params - self.   prev_control_params))), axis=0)
+                        self.prev_control_params = self.current_control_params
+                        self.current_control_params = new_control
+
+                        is_control_updated = True
+
+                    if self.count > 960:
+                        speed = -1.0
+
+                if is_control_updated:
+                    distance = 0.25
+                    force = self.current_control_params[0]
+                    speed = self.current_control_params[1]
+                    try:
+                        self.send_request(distance, force, speed)
+                    except Exception as e:
+                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
+
+                    is_control_updated = False
 
     def send_request(self, distance=0.3, force=0.0, speed=0.0):
         '''
