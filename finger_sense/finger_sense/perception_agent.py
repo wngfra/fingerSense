@@ -24,9 +24,7 @@ class PerceptionAgent(Node):
                 ('factor_dir', None),
                 ('info_dir',   None),
                 ('save_dir',   None),
-                ('mode',       None),
-                ('n_basis',    None),
-                ('stack_size', None)
+                ('mode',       None)
             ]
         )
 
@@ -60,30 +58,24 @@ class PerceptionAgent(Node):
         self.current_control_params = np.zeros(2)
 
         # Create a perceptum class
-        self.perceptum = Perceptum([
-            self.core_dir,
-            self.factor_dir,
-            self.info_dir],
-            self.n_basis,
-            16,
+        self.perceptum = Perceptum(
+            [
+                self.core_dir,
+                self.factor_dir,
+                self.info_dir
+            ],
+            3,  # latent dimension
+            33, # number of basis
+            16, # stack size
             'Gaussian'
         )
 
     def get_params(self):
-        self.save_dir = self.get_parameter(
-            'save_dir').get_parameter_value().string_value
-        self.core_dir = self.get_parameter(
-            'core_dir').get_parameter_value().string_value
-        self.factor_dir = self.get_parameter(
-            'factor_dir').get_parameter_value().string_value
-        self.info_dir = self.get_parameter(
-            'info_dir').get_parameter_value().string_value
-        self.mode = self.get_parameter(
-            'mode').get_parameter_value().string_value
-        self.n_basis = self.get_parameter(
-            'n_basis').get_parameter_value().integer_value
-        self.stack_size = self.get_parameter(
-            'stack_size').get_parameter_value().integer_value
+        self.save_dir   = str(self.get_parameter('save_dir').value)
+        self.core_dir   = str(self.get_parameter('core_dir').value)
+        self.factor_dir = str(self.get_parameter('factor_dir').value)
+        self.info_dir   = str(self.get_parameter('info_dir').value)
+        self.mode       = str(self.get_parameter('mode').value)
 
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k

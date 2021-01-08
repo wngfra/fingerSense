@@ -13,9 +13,7 @@ def generate_launch_description():
             {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
             {'info_dir'  : './src/fingerSense/finger_sense/finger_sense/info.csv'},
             {'save_dir'  : './src/fingerSense/finger_sense/finger_sense/data.npy'},
-            {'mode'      : 'train'},
-            {'n_basis'   : 33},
-            {'stack_size': 64}
+            {'mode'      : 'train'}
         ],
         output='screen',
         emulate_tty=True
