@@ -9,7 +9,6 @@ namespace franka_control
         auto msg = franka_interfaces::msg::RobotState();
         msg.header.frame_id = "base";
         msg.header.stamp = this->get_clock()->now();
-        msg.motion_finished = *bMotionFinished_;
         msg.o_f_ext_hat_k = *O_F_ext_hat_K_;
         msg.position = *position_;
         msg.quaternion = *quaternion_;

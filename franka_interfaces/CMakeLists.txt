@@ -25,7 +25,7 @@ set(msg_files
 )
 
 set(srv_files
-  "srv/ChangeSlidingParameter.srv"
+  "srv/SlidingControl.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

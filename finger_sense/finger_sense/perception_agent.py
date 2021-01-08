@@ -5,8 +5,9 @@ import rclpy
 from rclpy.node import Node
 
 from franka_interfaces.msg import RobotState
-from franka_interfaces.srv import ChangeSlidingParameter
+from franka_interfaces.srv import SlidingControl
 from tactile_interfaces.msg import TactileSignal
+from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
@@ -19,76 +20,83 @@ class PerceptionAgent(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('core_dir', './src/fingerSense/finger_sense/finger_sense/core.npy'),
-                ('factor_dir', './src/fingerSense/finger_sense/finger_sense/factors.npy'),
-                ('info_dir', './src/fingerSense/finger_sense/finger_sense/info.csv'),
-                ('save_dir', './src/fingerSense/finger_sense/finger_sense/data.npy'),
-                ('n_basis', 33),
-                ('stack_size', 64),
-                ('mode', 'train')
+                ('core_dir',   None),
+                ('factor_dir', None),
+                ('info_dir',   None),
+                ('save_dir',   None),
+                ('mode',       None),
+                ('n_basis',    None),
+                ('stack_size', None)
             ]
         )
 
-        save_dir = self.get_parameter(
-            'save_dir').get_parameter_value().string_value
-
-        self.mode = self.get_parameter(
-            'mode').get_parameter_value().string_value
+        self.get_params()
 
         self.count = 0
-        self.motion_finished = False
         self.robot_state = np.zeros((1, 13), dtype=np.float64)
-        self.save_dir = save_dir
-        self.stack_size = self.get_parameter(
-            'stack_size').get_parameter_value().integer_value
         self.tactile_stack = np.zeros((self.stack_size, 16), dtype=np.float32)
 
         self.sub_robot = self.create_subscription(
             RobotState,
-            '/franka_state',
+            'franka_state',
             self.robot_callback,
             100
         )
         self.sub_tactile = self.create_subscription(
             TactileSignal,
-            '/tactile_signals',
+            'tactile_signals',
             self.tactile_callback,
             10
         )
 
-        self.cli = self.create_client(
-            ChangeSlidingParameter, 'change_sliding_parameter')
-        self.req = ChangeSlidingParameter.Request()
+        self.sliding_control_cli = self.create_client(
+            SlidingControl, 'sliding_control')
+        self.sliding_control_req = SlidingControl.Request()
+        self.sensor_cli = self.create_client(
+            ChangeState, 'tactile_publisher/change_state')
+        self.sensor_req = ChangeState.Request()
 
-        self.create_knowledge_base()
+        self.prev_control_params = np.zeros(2)
+        self.current_control_params = np.zeros(2)
 
-        self.prev_control_params = np.zeros((1, 2))
-        self.current_control_params = np.array([0.1, 0.01])
+        # Create a perceptum class
+        self.perceptum = Perceptum([
+            self.core_dir,
+            self.factor_dir,
+            self.info_dir],
+            self.n_basis,
+            16,
+            'Gaussian'
+        )
 
-    def create_knowledge_base(self):
-        # Parse directory
-        core_dir = self.get_parameter(
+    def get_params(self):
+        self.save_dir = self.get_parameter(
+            'save_dir').get_parameter_value().string_value
+        self.core_dir = self.get_parameter(
             'core_dir').get_parameter_value().string_value
-        factor_dir = self.get_parameter(
+        self.factor_dir = self.get_parameter(
             'factor_dir').get_parameter_value().string_value
-        info_dir = self.get_parameter(
+        self.info_dir = self.get_parameter(
             'info_dir').get_parameter_value().string_value
-        n_basis = self.get_parameter(
+        self.mode = self.get_parameter(
+            'mode').get_parameter_value().string_value
+        self.n_basis = self.get_parameter(
             'n_basis').get_parameter_value().integer_value
-
-        # Load knowledge base
-        self.perceptum = Perceptum(
-            [core_dir, factor_dir, info_dir], n_basis, 16, 'Gaussian')
+        self.stack_size = self.get_parameter(
+            'stack_size').get_parameter_value().integer_value
 
     def robot_callback(self, msg):
-        self.motion_finished = msg.motion_finished
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
         self.robot_state[0, 6:9] = msg.position
         self.robot_state[0, 9:13] = msg.quaternion
 
     def tactile_callback(self, msg):
-        item = msg.data
-
+        if self.count > 3:
+            self.send_sliding_control_request(0.25, 0.2, -0.05)
+        else:
+            self.send_sliding_control_request(0.25, 0.2, 0.05)
+        self.count += 1
+        '''
         is_control_updated = False
 
         if item is not None:
@@ -142,15 +150,20 @@ class PerceptionAgent(Node):
                         self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
 
                     is_control_updated = False
+        '''
 
-    def send_request(self, distance=0.3, force=0.0, speed=0.0):
+    def send_sliding_control_request(self, distance, force, speed):
         '''
             Send parameter change request to control parameter server
         '''
-        self.req.distance = distance
-        self.req.force = force
-        self.req.speed = speed
-        self.future = self.cli.call_async(self.req)
+        self.sliding_control_req.distance = distance
+        self.sliding_control_req.force = force
+        self.sliding_control_req.speed = speed
+        self.sliding_control_future = self.sliding_control_cli.call_async(self.sliding_control_req)
+
+    def send_sensor_request(self, transition):
+        self.sensor_req.transition = transition
+        self.sensor_future = self.sensor_cli.call_async(self.sensor_req)
 
 
 def main(args=None):

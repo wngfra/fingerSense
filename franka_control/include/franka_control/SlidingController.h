@@ -2,11 +2,10 @@
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 #pragma once
 
-#include <array>
 #include <functional>
 #include <memory>
 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 #include <franka/duration.h>
 #include <franka/model.h>
@@ -14,13 +13,13 @@
 
 namespace franka_control
 {
-    class SlidingControl
+    class SlidingController
     {
     public:
-        SlidingControl(const std::shared_ptr<franka::Model>);
-        // ~SlidingControl();
+        SlidingController(const std::shared_ptr<franka::Model>);
+        // ~SlidingController();
 
-        franka::CartesianVelocities operator()(const franka::RobotState &, franka::Duration);
+        franka::CartesianVelocities sliding_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
 

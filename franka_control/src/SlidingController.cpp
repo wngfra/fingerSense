@@ -1,15 +1,16 @@
 // Copyright (c) 2020 wngfra
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
+
 #include <array>
 #include <math.h>
-#include <stdio.h>
+// #include <stdio.h>
 
-#include "franka_control/SlidingControl.h"
+#include "franka_control/SlidingController.h"
 
 namespace franka_control
 {
 
-    SlidingControl::SlidingControl(const std::shared_ptr<franka::Model> model_ptr)
+    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr)
     {
         model_ptr_ = model_ptr;
 
@@ -20,7 +21,7 @@ namespace franka_control
         set_sliding_parameter(0.0, 0.0, 0.0, 0);
     }
 
-    franka::CartesianVelocities SlidingControl::operator()(const franka::RobotState &robot_state, franka::Duration period)
+    franka::CartesianVelocities SlidingController::sliding_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
@@ -78,10 +79,10 @@ namespace franka_control
         return output;
     }
 
-    franka::Torques SlidingControl::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    franka::Torques SlidingController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         constexpr double k_p = 1e-5;
-        constexpr double k_i = 5e-6;
+        constexpr double k_i = 1e-5;
 
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
@@ -133,7 +134,7 @@ namespace franka_control
         return tau_d_array;
     }
 
-    franka::Torques SlidingControl::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    franka::Torques SlidingController::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
@@ -194,7 +195,7 @@ namespace franka_control
         return output;
     }
 
-    void SlidingControl::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
+    void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
     {
         // Compliance parameters
         Eigen::MatrixXd stiffness_matrix(6, 6), damping_matrix(6, 6);
@@ -210,7 +211,7 @@ namespace franka_control
         damping_ = damping_matrix;
     }
 
-    void SlidingControl::set_sliding_parameter(const double distance, const double force, const double speed, const int cycle_max)
+    void SlidingController::set_sliding_parameter(const double distance, const double force, const double speed, const int cycle_max)
     {
         x_max_ = distance;
         v_x_max_ = speed;
@@ -225,7 +226,7 @@ namespace franka_control
         cycle_count_ = 0;
     }
 
-    void SlidingControl::reset_time()
+    void SlidingController::reset_time()
     {
         time_ = 0.0;
     }

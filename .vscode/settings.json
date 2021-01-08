@@ -75,7 +75,8 @@
         "core": "cpp",
         "dense": "cpp",
         "eigenvalues": "cpp",
-        "*.txx": "cpp"
+        "*.txx": "cpp",
+        "any": "cpp"
     },
     "python.pythonPath": "/usr/bin/python3"
 }

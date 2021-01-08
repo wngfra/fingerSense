@@ -14,9 +14,8 @@ namespace franka_control
     class FrankaStatePublisher : public rclcpp::Node
     {
     public:
-        FrankaStatePublisher(std::shared_ptr<bool> bMotionFinished, std::shared_ptr<std::array<double, 6>> O_F_ext_hat_K, std::shared_ptr<std::array<double, 3>> position, std::shared_ptr<std::array<double, 4>> quaternion) : Node("franka_state_publisher")
+        FrankaStatePublisher(std::shared_ptr<std::array<double, 6>> O_F_ext_hat_K, std::shared_ptr<std::array<double, 3>> position, std::shared_ptr<std::array<double, 4>> quaternion) : Node("franka_state_publisher")
         {
-            bMotionFinished_ = bMotionFinished;
             O_F_ext_hat_K_ = O_F_ext_hat_K;
             position_ = position;
             quaternion_ = quaternion;

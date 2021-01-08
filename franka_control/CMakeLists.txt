@@ -39,13 +39,13 @@ add_library(common STATIC
   src/common.cpp
 )
 
-add_library(sliding_control STATIC
-  src/SlidingControl.cpp
+add_library(sliding_controller STATIC
+  src/SlidingController.cpp
 )
 
 target_link_libraries(common PUBLIC Eigen3::Eigen3 Franka::Franka)
 
-target_link_libraries(sliding_control PUBLIC Eigen3::Eigen3 Franka::Franka)
+target_link_libraries(sliding_controller PUBLIC Eigen3::Eigen3 Franka::Franka)
 
 # add ROS2 libraries 
 add_library(franka_state_publisher STATIC
@@ -56,8 +56,8 @@ add_library(node_state_manager STATIC
   src/NodeStateManager.cpp
 )
 
-add_library(sliding_parameter_server STATIC
-  src/SlidingParameterServer.cpp
+add_library(sliding_control_server STATIC
+  src/SlidingControlServer.cpp
 )
 
 ament_target_dependencies(franka_state_publisher
@@ -70,14 +70,14 @@ ament_target_dependencies(node_state_manager
   "rclcpp"
 )
 
-ament_target_dependencies(sliding_parameter_server
+ament_target_dependencies(sliding_control_server
   "franka_interfaces"
   "rclcpp"
 )
 
 # Build apps
 set(APPS
-  sense_test
+  node_launcher
 )
 
 foreach(target ${APPS})
@@ -86,8 +86,8 @@ foreach(target ${APPS})
     common
     franka_state_publisher
     node_state_manager
-    sliding_control
-    sliding_parameter_server
+    sliding_controller
+    sliding_control_server
     Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
