@@ -11,6 +11,10 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
+LATENT_DIM = 3
+NUM_BASIS = 33
+STACK_SIZE = 64
+
 
 class PerceptionAgent(Node):
 
@@ -64,18 +68,18 @@ class PerceptionAgent(Node):
                 self.factor_dir,
                 self.info_dir
             ],
-            3,  # latent dimension
-            33, # number of basis
-            16, # stack size
+            LATENT_DIM,  # latent dimension
+            NUM_BASIS,  # number of basis
+            STACK_SIZE,  # stack size
             'Gaussian'
         )
 
     def get_params(self):
-        self.save_dir   = str(self.get_parameter('save_dir').value)
-        self.core_dir   = str(self.get_parameter('core_dir').value)
+        self.save_dir = str(self.get_parameter('save_dir').value)
+        self.core_dir = str(self.get_parameter('core_dir').value)
         self.factor_dir = str(self.get_parameter('factor_dir').value)
-        self.info_dir   = str(self.get_parameter('info_dir').value)
-        self.mode       = str(self.get_parameter('mode').value)
+        self.info_dir = str(self.get_parameter('info_dir').value)
+        self.mode = str(self.get_parameter('mode').value)
 
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
@@ -83,11 +87,15 @@ class PerceptionAgent(Node):
         self.robot_state[0, 9:13] = msg.quaternion
 
     def tactile_callback(self, msg):
-        if self.count > 3:
-            self.send_sliding_control_request(0.25, 0.2, -0.05)
-        else:
-            self.send_sliding_control_request(0.25, 0.2, 0.05)
-        self.count += 1
+        raw_data = msg.data
+        if raw_data is not None:
+            self.count += 1
+            if self.count < STACK_SIZE:
+                self.tactile_stack[self.count] = raw_data
+            else:
+                self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
+                self.tactile_stack[-1, :] = raw_data
+
         '''
         is_control_updated = False
 
@@ -95,7 +103,6 @@ class PerceptionAgent(Node):
             self.count += 1
 
             if self.count < self.stack_size:
-                self.tactile_stack[self.count, :] = item
             else:
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1] = item
@@ -151,7 +158,8 @@ class PerceptionAgent(Node):
         self.sliding_control_req.distance = distance
         self.sliding_control_req.force = force
         self.sliding_control_req.speed = speed
-        self.sliding_control_future = self.sliding_control_cli.call_async(self.sliding_control_req)
+        self.sliding_control_future = self.sliding_control_cli.call_async(
+            self.sliding_control_req)
 
     def send_sensor_request(self, transition):
         self.sensor_req.transition = transition
