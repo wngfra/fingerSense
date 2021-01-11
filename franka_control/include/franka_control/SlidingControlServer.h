@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
@@ -49,7 +50,9 @@ namespace franka_control
 
         rclcpp::Service<franka_interfaces::srv::SlidingControl>::SharedPtr service_;
 
-        double distance, force, speed;
+        double force;
+        std::array<double, 2> distance;
+        std::array<double, 2> speed;
         bool is_touched;
 
         const std::array<double, 7> q_goal = {{-0.000197684, 0.35463, 0.000567185, -2.73805, -0.000571208, M_PI, 0.785693}};

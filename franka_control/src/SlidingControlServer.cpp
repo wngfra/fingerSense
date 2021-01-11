@@ -21,12 +21,12 @@ namespace franka_control
                 RCLCPP_INFO(this->get_logger(), "Touched the platform.");
             }
 
-            double distance = request->distance;
-            double force = request->force;
-            double speed = request->speed;
+            force = request->force;
+            distance = request->distance;
+            speed = request->speed;
 
-            controller_->set_sliding_parameter(distance, force, speed, 1);
-            if (speed > 0 && force > 0)
+            controller_->set_sliding_parameter(force, distance, speed);
+            if (force > 0)
             {
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {

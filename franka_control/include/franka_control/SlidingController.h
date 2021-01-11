@@ -23,8 +23,8 @@ namespace franka_control
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
 
-        void set_stiffness(const std::array<double, 6> &, const double);
-        void set_sliding_parameter(const double, const double, const double, const int);
+        void set_stiffness(const std::array<double, 6>&, const double);
+        void set_sliding_parameter(const double, const std::array<double, 2>&, const std::array<double, 2>&);
 
         void reset_time();
 
@@ -39,12 +39,11 @@ namespace franka_control
         franka::RobotState initial_state_;
 
         double x_max_, v_x_max_, accel_x_;
+        double y_max_, v_y_max_, accel_y_;
         double accel_time_, const_v_time_;
         double force_, force_error_integral_;
         double omega_;
-        int cycle_max_;
 
-        int cycle_count_ = 0;
         double time_ = 0.0;
     };
 } // namespace franka_control

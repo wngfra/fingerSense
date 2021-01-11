@@ -151,12 +151,12 @@ class PerceptionAgent(Node):
                     is_control_updated = False
         '''
 
-    def send_sliding_control_request(self, distance, force, speed):
+    def send_sliding_control_request(self, force, distance, speed):
         '''
             Send parameter change request to control parameter server
         '''
-        self.sliding_control_req.distance = distance
         self.sliding_control_req.force = force
+        self.sliding_control_req.distance = distance
         self.sliding_control_req.speed = speed
         self.sliding_control_future = self.sliding_control_cli.call_async(
             self.sliding_control_req)

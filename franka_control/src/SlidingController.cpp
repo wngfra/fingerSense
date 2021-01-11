@@ -17,8 +17,11 @@ namespace franka_control
         x_max_ = 0.0;
         v_x_max_ = 0.0;
 
+        y_max_ = 0.0;
+        v_y_max_ = 0.0;
+
         set_stiffness({{200, 200, 200, 20, 20, 20}}, 1.0);
-        set_sliding_parameter(0.0, 0.0, 0.0, 0);
+        set_sliding_parameter(0.0, {{0.0, 0.0}}, {{0.0, 0.0}});
     }
 
     franka::CartesianVelocities SlidingController::sliding_control_callback(const franka::RobotState &robot_state, franka::Duration period)
@@ -36,42 +39,28 @@ namespace franka_control
 
         double v_x = 0.0;
         double v_y = 0.0;
-        const double total_time = 4 * accel_time_ + 2 * const_v_time_;
+        const double time_max = 2 * accel_time_ + const_v_time_;
 
         if (time_ <= accel_time_)
         {
             v_x = v_x_max_ * std::sin(omega_ * time_);
+            v_y = v_y_max_ * std::sin(omega_ * time_);
         }
         else if (time_ <= const_v_time_ + accel_time_)
         {
             v_x = v_x_max_;
+            v_y = v_y_max_;
         }
-        else if (time_ <= const_v_time_ + 3 * accel_time_)
+        else if (time_ <= time_max)
         {
             double t = time_ - const_v_time_;
             v_x = v_x_max_ * std::sin(omega_ * t);
-        }
-        else if (time_ <= total_time - accel_time_)
-        {
-            v_x = -v_x_max_;
-        }
-        else
-        {
-            double t = time_ - 2 * const_v_time_;
-            v_x = v_x_max_ * std::sin(omega_ * t);
-        }
-
-        // v_y = 0.05 * std::sin(32 * M_PI / total_time * time_);
-
-        if (time_ >= total_time)
-        {
-            time_ -= total_time;
-            cycle_count_ += 1;
+            v_y = v_y_max_ * std::sin(omega_ * t);
         }
 
         franka::CartesianVelocities output = {{v_x, v_y, 0.0, 0.0, 0.0, 0.0}};
 
-        if (x_max_ <= accel_x_ || cycle_count_ >= cycle_max_)
+        if (x_max_ <= accel_x_ || y_max_ <= accel_y_ || time_ >= time_max)
         {
             output.motion_finished = true;
         }
@@ -100,12 +89,13 @@ namespace franka_control
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
         position_d_[0] = pose_d[12];
+        position_d_[1] = pose_d[13];
 
         std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
-        if (std::abs(wrench_ext[1]) >= 5.0)
-        {
-            position_d_[1] = position(1);
-        }
+        // if (std::abs(wrench_ext[1]) >= 5.0)
+        // {
+        //     position_d_[1] = position(1);
+        // }
 
         force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
         position_d_[2] += k_p * (-force_ - wrench_ext[2]) + k_i * force_error_integral_;
@@ -211,19 +201,22 @@ namespace franka_control
         damping_ = damping_matrix;
     }
 
-    void SlidingController::set_sliding_parameter(const double distance, const double force, const double speed, const int cycle_max)
+    void SlidingController::set_sliding_parameter(const double force, const std::array<double, 2> &distance, const std::array<double, 2> &speed)
     {
-        x_max_ = distance;
-        v_x_max_ = speed;
-        cycle_max_ = cycle_max;
         force_ = force;
 
+        x_max_ = distance[0];
+        v_x_max_ = speed[0];
+        y_max_ = distance[1];
+        v_y_max_ = speed[1];
+
         accel_x_ = v_x_max_ * v_x_max_ / 1.5; // limit max ddx
+        accel_y_ = v_y_max_ * v_y_max_ / 1.5; // limit max ddy
+
         omega_ = v_x_max_ / accel_x_;
         accel_time_ = M_PI_2 / omega_;
         const_v_time_ = (x_max_ - 2 * accel_x_) / v_x_max_;
         time_ = 0.0;
-        cycle_count_ = 0;
     }
 
     void SlidingController::reset_time()
