@@ -28,13 +28,13 @@ int main(int argc, char **argv)
     auto position = std::make_shared<std::array<double, 3>>();
     auto quaternion = std::make_shared<std::array<double, 4>>();
 
-    // auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(O_F_ext_hat_K, position, quaternion);
+    auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(O_F_ext_hat_K, position, quaternion);
     auto control_server_handler = std::make_shared<franka_control::SlidingControlServer>(robot);
 
     // auto node_state_manager = franka_control::NodeStateManager("tactile_publisher_manager", "/tactile_publisher/change_state");
     
     rclcpp::executors::MultiThreadedExecutor executor;
-    // executor.add_node(publisher_handler);
+    executor.add_node(publisher_handler);
     executor.add_node(control_server_handler);
     executor.spin();
 

@@ -3,3 +3,4 @@ float64[3] distance
 float64[3] speed
 ---
 bool success
+bool recovered

@@ -74,7 +74,12 @@ class PerceptionAgent(Node):
             'Gaussian'
         )
 
-        self.direction = 1
+        self.direction = 2
+
+        self.lap = 0
+        self.index = 0
+        self.speeds = np.linspace(0.01, 0.1, 20)
+        self.force = 0.1
 
     def get_params(self):
         self.save_dir = str(self.get_parameter('save_dir').value)
@@ -97,19 +102,33 @@ class PerceptionAgent(Node):
             else:
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1, :] = raw_data
-        
-        # try:
-        #     response = self.sliding_control_future.result()
-        # except Exception as e:
-        #     self.get_logger().info('No service called %r' % (e, ))
-        #     response = None
 
-        # if self.direction == 1 and (response is None or response is True):
-        #     self.send_sliding_control_request(0.1, [0.2, 0.0, 0.0], [0.01, 0.0, 0.0])
-        #     self.direction = -1
-        # elif self.direction == -1 and (response is True):
-        #     self.send_sliding_control_request(0.1, [-0.2, 0.0, 0.0], [-0.01, 0.0, 0.0])
-        #     self.direction = 1
+        # training
+        if self.index <= len(self.speeds):
+            x = 0.25
+            dx = self.speeds[self.index]
+            if self.direction == 2:
+                self.send_sliding_control_request(
+                    self.force, [x, 0.1, 0.0], [dx, 0.0, 0.0])
+                self.direction = -1
+            else:
+                try:
+                    response = self.sliding_control_future.result()
+                    if response.success or response.recovered:
+                        x *= self.direction
+                        dx *= self.direction
+                        self.send_sliding_control_request(
+                            self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+
+                        if self.direction == -1:
+                            self.lap += 1
+                        if self.lap >= 3:
+                            self.index += 1
+                            self.lap = 0
+                        self.direction *= -1
+
+                except Exception:
+                    pass
 
         '''
         is_control_updated = False

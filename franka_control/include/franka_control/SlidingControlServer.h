@@ -28,7 +28,7 @@ namespace franka_control
             auto model_ptr = std::make_shared<franka::Model>(robot_->loadModel());
 
             controller_ = std::make_unique<SlidingController>(model_ptr);
-            controller_->set_stiffness({{3500, 300, 1000, 300, 300, 300}}, 1.0);
+            controller_->set_stiffness({{3500, 1000, 1000, 300, 300, 300}}, 1.0);
 
             service_ = this->create_service<franka_interfaces::srv::SlidingControl>("/sliding_control", std::bind(&SlidingControlServer::controlled_slide, this, std::placeholders::_1, std::placeholders::_2));
 

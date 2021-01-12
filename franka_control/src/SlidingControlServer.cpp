@@ -28,6 +28,7 @@ namespace franka_control
             controller_->set_sliding_parameter(force, distance, speed);
             if (force > 0.0)
             {
+                RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                         return controller_->force_control_callback(robot_state, period);
@@ -35,8 +36,6 @@ namespace franka_control
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
                         return controller_->sliding_control_callback(robot_state, period);
                     });
-
-                RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
             }
             else if (force == 0.0)
             {
@@ -52,13 +51,15 @@ namespace franka_control
             }
 
             response->success = true;
+            response->recovered = false;
         }
         catch (const std::exception &e)
         {
             robot_->automaticErrorRecovery();
 
-            RCLCPP_WARN(this->get_logger(), "Sliding control service call failed! Automatic recovery attempted.");
+            RCLCPP_WARN(this->get_logger(), "%s! Automatic recovery attempted.", e.what());
             response->success = false;
+            response->recovered = true;
         }
     }
 } // namespace franka_control

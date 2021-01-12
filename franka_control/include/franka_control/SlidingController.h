@@ -26,8 +26,6 @@ namespace franka_control
         void set_stiffness(const std::array<double, 6>&, const double);
         void set_sliding_parameter(const double, const std::array<double, 3>&, const std::array<double, 3>&);
 
-        void reset_time();
-
     private:
         std::shared_ptr<franka::Model> model_ptr_;
 
@@ -40,7 +38,6 @@ namespace franka_control
 
         std::array<double, 3> x_max_;
         std::array<double, 3> dx_max_;
-        std::array<double, 3> ddx_max_;
         std::array<double, 3> omega_;
         std::array<double, 3> accel_time_;
         std::array<double, 3> const_v_time_;

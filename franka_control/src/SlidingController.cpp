@@ -42,7 +42,7 @@ namespace franka_control
 
         for (int i = 0; i < 3; ++i)
         {
-            if (x_max_[i] > 0.0)
+            if (x_max_[i] != 0.0)
             {
                 if (time_ <= accel_time_[i])
                 {
@@ -54,15 +54,14 @@ namespace franka_control
                 }
                 else if (time_ <= time_max_[i])
                 {
-                    double t = time_ - const_v_time_[i];
-                    dx[i] = dx_max_[i] * std::sin(omega_[i] * t);
+                    dx[i] = dx_max_[i] * std::sin(omega_[i] * (time_ - const_v_time_[i]));
                 }
             }
         }
 
         franka::CartesianVelocities output = {{dx[0], dx[1], dx[2], 0.0, 0.0, 0.0}};
 
-        if (time_ >= *std::max_element(time_max_.begin(), time_max_.end()))
+        if (time_ > *std::max_element(time_max_.begin(), time_max_.end()))
         {
             output.motion_finished = true;
         }
@@ -72,8 +71,8 @@ namespace franka_control
 
     franka::Torques SlidingController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
-        constexpr double k_p = 1e-5;
-        constexpr double k_i = 1e-5;
+        constexpr double k_p = 1e-6;
+        constexpr double k_i = 1e-6;
 
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
@@ -94,10 +93,6 @@ namespace franka_control
         position_d_[1] = pose_d[13];
 
         std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
-        // if (std::abs(wrench_ext[1]) >= 5.0)
-        // {
-        //     position_d_[1] = position(1);
-        // }
 
         force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
         position_d_[2] += k_p * (-force_ - wrench_ext[2]) + k_i * force_error_integral_;
@@ -213,29 +208,17 @@ namespace franka_control
 
         for (int i = 0; i < 3; ++i)
         {
-            if (x_max_[i] > 0.0)
+            if (std::abs(x_max_[i]) > 0.0)
             {
-                ddx_max_[i] = dx_max_[i] * dx_max_[i] / 1.5;
-                omega_[i] = dx_max_[i] / ddx_max_[i];
+                double ddx_max = std::abs(dx_max_[i]) * dx_max_[i] / 1.5;
+
+                omega_[i] = dx_max_[i] / ddx_max;
                 accel_time_[i] = M_PI_2 / omega_[i];
-                const_v_time_[i] = (x_max_[i] - 2 * ddx_max_[i]) / dx_max_[i];
+                const_v_time_[i] = (x_max_[i] - 2 * ddx_max) / dx_max_[i];
                 time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
-            }
-            else
-            {
-                ddx_max_[i] = 0.0;
-                omega_[i] = 0.0;
-                accel_time_[i] = 0.0;
-                const_v_time_[i] = 0.0;
-                time_max_[i] = 0.0;
             }
         }
 
-        time_ = 0.0;
-    }
-
-    void SlidingController::reset_time()
-    {
         time_ = 0.0;
     }
 } // namespace franka_control
