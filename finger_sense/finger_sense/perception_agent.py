@@ -36,7 +36,7 @@ class PerceptionAgent(Node):
 
         self.count = 0
         self.robot_state = np.zeros((1, 13), dtype=np.float64)
-        self.tactile_stack = np.zeros((self.stack_size, 16), dtype=np.float32)
+        self.tactile_stack = np.zeros((STACK_SIZE, 16), dtype=np.float32)
 
         self.sub_robot = self.create_subscription(
             RobotState,
@@ -74,6 +74,8 @@ class PerceptionAgent(Node):
             'Gaussian'
         )
 
+        self.direction = 1
+
     def get_params(self):
         self.save_dir = str(self.get_parameter('save_dir').value)
         self.core_dir = str(self.get_parameter('core_dir').value)
@@ -95,6 +97,19 @@ class PerceptionAgent(Node):
             else:
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1, :] = raw_data
+        
+        # try:
+        #     response = self.sliding_control_future.result()
+        # except Exception as e:
+        #     self.get_logger().info('No service called %r' % (e, ))
+        #     response = None
+
+        # if self.direction == 1 and (response is None or response is True):
+        #     self.send_sliding_control_request(0.1, [0.2, 0.0, 0.0], [0.01, 0.0, 0.0])
+        #     self.direction = -1
+        # elif self.direction == -1 and (response is True):
+        #     self.send_sliding_control_request(0.1, [-0.2, 0.0, 0.0], [-0.01, 0.0, 0.0])
+        #     self.direction = 1
 
         '''
         is_control_updated = False

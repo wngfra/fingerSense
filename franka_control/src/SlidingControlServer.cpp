@@ -26,7 +26,7 @@ namespace franka_control
             speed = request->speed;
 
             controller_->set_sliding_parameter(force, distance, speed);
-            if (force > 0)
+            if (force > 0.0)
             {
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
@@ -36,9 +36,16 @@ namespace franka_control
                         return controller_->sliding_control_callback(robot_state, period);
                     });
 
-                RCLCPP_INFO(this->get_logger(), "Sliding at [distance: %f, force: %f, speed: %f]", distance, force, speed);
+                RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
             }
-            else
+            else if (force == 0.0)
+            {
+                robot_->control(
+                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                        return controller_->sliding_control_callback(robot_state, period);
+                    });
+            }
+            else if (force < 0.0)
             {
                 MotionGenerator mg(0.5, q_goal);
                 robot_->control(mg);

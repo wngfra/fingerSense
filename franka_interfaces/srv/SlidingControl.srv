@@ -1,5 +1,5 @@
 float64 force
-float64[2] distance
-float64[2] speed
+float64[3] distance
+float64[3] speed
 ---
 bool success

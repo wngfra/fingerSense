@@ -1,9 +1,9 @@
 // Copyright (c) 2020 wngfra
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
+#include <algorithm>
 #include <array>
 #include <math.h>
-// #include <stdio.h>
 
 #include "franka_control/SlidingController.h"
 
@@ -14,14 +14,14 @@ namespace franka_control
     {
         model_ptr_ = model_ptr;
 
-        x_max_ = 0.0;
-        v_x_max_ = 0.0;
-
-        y_max_ = 0.0;
-        v_y_max_ = 0.0;
+        for (int i = 0; i < 3; ++i)
+        {
+            x_max_[i] = 0.0;
+            dx_max_[i] = 0.0;
+        }
 
         set_stiffness({{200, 200, 200, 20, 20, 20}}, 1.0);
-        set_sliding_parameter(0.0, {{0.0, 0.0}}, {{0.0, 0.0}});
+        set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
     }
 
     franka::CartesianVelocities SlidingController::sliding_control_callback(const franka::RobotState &robot_state, franka::Duration period)
@@ -37,30 +37,32 @@ namespace franka_control
             orientation_d_ = initial_transform_.linear();
         }
 
-        double v_x = 0.0;
-        double v_y = 0.0;
-        const double time_max = 2 * accel_time_ + const_v_time_;
+        std::array<double, 3> dx;
+        dx.fill(0.0);
 
-        if (time_ <= accel_time_)
+        for (int i = 0; i < 3; ++i)
         {
-            v_x = v_x_max_ * std::sin(omega_ * time_);
-            v_y = v_y_max_ * std::sin(omega_ * time_);
-        }
-        else if (time_ <= const_v_time_ + accel_time_)
-        {
-            v_x = v_x_max_;
-            v_y = v_y_max_;
-        }
-        else if (time_ <= time_max)
-        {
-            double t = time_ - const_v_time_;
-            v_x = v_x_max_ * std::sin(omega_ * t);
-            v_y = v_y_max_ * std::sin(omega_ * t);
+            if (x_max_[i] > 0.0)
+            {
+                if (time_ <= accel_time_[i])
+                {
+                    dx[i] = dx_max_[i] * std::sin(omega_[i] * time_);
+                }
+                else if (time_ <= const_v_time_[i] + accel_time_[i])
+                {
+                    dx[i] = dx_max_[i];
+                }
+                else if (time_ <= time_max_[i])
+                {
+                    double t = time_ - const_v_time_[i];
+                    dx[i] = dx_max_[i] * std::sin(omega_[i] * t);
+                }
+            }
         }
 
-        franka::CartesianVelocities output = {{v_x, v_y, 0.0, 0.0, 0.0, 0.0}};
+        franka::CartesianVelocities output = {{dx[0], dx[1], dx[2], 0.0, 0.0, 0.0}};
 
-        if (x_max_ <= accel_x_ || y_max_ <= accel_y_ || time_ >= time_max)
+        if (time_ >= *std::max_element(time_max_.begin(), time_max_.end()))
         {
             output.motion_finished = true;
         }
@@ -192,7 +194,8 @@ namespace franka_control
         stiffness_matrix.setZero();
         damping_matrix.setZero();
 
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < 6; ++i)
+        {
             stiffness_matrix(i, i) = stiffness_coefficient[i];
             damping_matrix(i, i) = damping_coefficient * sqrt(stiffness_coefficient[i]);
         }
@@ -201,21 +204,33 @@ namespace franka_control
         damping_ = damping_matrix;
     }
 
-    void SlidingController::set_sliding_parameter(const double force, const std::array<double, 2> &distance, const std::array<double, 2> &speed)
+    void SlidingController::set_sliding_parameter(const double force, const std::array<double, 3> &distance, const std::array<double, 3> &speed)
     {
         force_ = force;
 
-        x_max_ = distance[0];
-        v_x_max_ = speed[0];
-        y_max_ = distance[1];
-        v_y_max_ = speed[1];
+        x_max_ = distance;
+        dx_max_ = speed;
 
-        accel_x_ = v_x_max_ * v_x_max_ / 1.5; // limit max ddx
-        accel_y_ = v_y_max_ * v_y_max_ / 1.5; // limit max ddy
+        for (int i = 0; i < 3; ++i)
+        {
+            if (x_max_[i] > 0.0)
+            {
+                ddx_max_[i] = dx_max_[i] * dx_max_[i] / 1.5;
+                omega_[i] = dx_max_[i] / ddx_max_[i];
+                accel_time_[i] = M_PI_2 / omega_[i];
+                const_v_time_[i] = (x_max_[i] - 2 * ddx_max_[i]) / dx_max_[i];
+                time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
+            }
+            else
+            {
+                ddx_max_[i] = 0.0;
+                omega_[i] = 0.0;
+                accel_time_[i] = 0.0;
+                const_v_time_[i] = 0.0;
+                time_max_[i] = 0.0;
+            }
+        }
 
-        omega_ = v_x_max_ / accel_x_;
-        accel_time_ = M_PI_2 / omega_;
-        const_v_time_ = (x_max_ - 2 * accel_x_) / v_x_max_;
         time_ = 0.0;
     }
 
