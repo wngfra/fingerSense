@@ -19,12 +19,12 @@ namespace franka_control
         SlidingController(const std::shared_ptr<franka::Model>);
         // ~SlidingController();
 
+        void set_stiffness(const std::array<double, 6> &, const double);
+        void set_sliding_parameter(const double, const std::array<double, 3> &, const std::array<double, 3> &);
+
         franka::CartesianVelocities sliding_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
-
-        void set_stiffness(const std::array<double, 6>&, const double);
-        void set_sliding_parameter(const double, const std::array<double, 3>&, const std::array<double, 3>&);
 
     private:
         std::shared_ptr<franka::Model> model_ptr_;
@@ -36,15 +36,8 @@ namespace franka_control
 
         franka::RobotState initial_state_;
 
-        std::array<double, 3> x_max_;
-        std::array<double, 3> dx_max_;
-        std::array<double, 3> omega_;
-        std::array<double, 3> accel_time_;
-        std::array<double, 3> const_v_time_;
-        std::array<double, 3> time_max_;
+        std::array<double, 3> x_max_, dx_max_, dx_, sgn_, omega_, accel_time_, const_v_time_, time_max_;
 
-        double force_, force_error_integral_;
-
-        double time_ = 0.0;
+        double force_, force_error_integral_, time_;
     };
 } // namespace franka_control

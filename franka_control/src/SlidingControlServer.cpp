@@ -10,17 +10,6 @@ namespace franka_control
     {
         try
         {
-            if (!is_touched)
-            {
-                robot_->control(
-                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                        return controller_->touch_control_callback(robot_state, period);
-                    });
-
-                is_touched = true;
-                RCLCPP_INFO(this->get_logger(), "Touched the platform.");
-            }
-
             force = request->force;
             distance = request->distance;
             speed = request->speed;
@@ -28,6 +17,17 @@ namespace franka_control
             controller_->set_sliding_parameter(force, distance, speed);
             if (force > 0.0)
             {
+                if (!is_touched)
+                {
+                    robot_->control(
+                        [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                            return controller_->touch_control_callback(robot_state, period);
+                        });
+
+                    is_touched = true;
+                    RCLCPP_INFO(this->get_logger(), "Touched the platform.");
+                }
+
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
@@ -39,15 +39,18 @@ namespace franka_control
             }
             else if (force == 0.0)
             {
+                RCLCPP_INFO(this->get_logger(), "Moving distance: (%f, %f, %f), speed: (%f, %f, %f).", distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
                         return controller_->sliding_control_callback(robot_state, period);
                     });
+                is_touched = false;
             }
             else if (force < 0.0)
             {
                 MotionGenerator mg(0.5, q_goal);
                 robot_->control(mg);
+                is_touched = false;
             }
 
             response->success = true;

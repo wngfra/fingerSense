@@ -74,12 +74,14 @@ class PerceptionAgent(Node):
             'Gaussian'
         )
 
-        self.direction = 2
+        self.direction = 1.0
 
         self.lap = 0
         self.index = 0
-        self.speeds = np.linspace(0.01, 0.1, 20)
+
+        self.speeds = np.linspace(0.01, 0.1, 10)
         self.force = 0.1
+        self.trainset = []
 
     def get_params(self):
         self.save_dir = str(self.get_parameter('save_dir').value)
@@ -104,31 +106,29 @@ class PerceptionAgent(Node):
                 self.tactile_stack[-1, :] = raw_data
 
         # training
+        self.trainset.append(raw_data)
         if self.index <= len(self.speeds):
-            x = 0.25
-            dx = self.speeds[self.index]
-            if self.direction == 2:
-                self.send_sliding_control_request(
-                    self.force, [x, 0.1, 0.0], [dx, 0.0, 0.0])
-                self.direction = -1
-            else:
-                try:
-                    response = self.sliding_control_future.result()
-                    if response.success or response.recovered:
-                        x *= self.direction
-                        dx *= self.direction
-                        self.send_sliding_control_request(
-                            self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+            x = 0.26 * self.direction
+            dx = self.speeds[self.index] * self.direction
+                       
+            try:
+                response = self.sliding_control_future.result()
+                success = response.success
+            except Exception:
+                success = False
+                
+            if self.index == 0 and self.lap == 0 or success:
+                    self.send_sliding_control_request(self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+                    self.lap += 1
+                    self.direction *= -1.0
 
-                        if self.direction == -1:
-                            self.lap += 1
-                        if self.lap >= 3:
-                            self.index += 1
-                            self.lap = 0
-                        self.direction *= -1
+                    if self.lap > 5:
+                        self.index += 1
+                        self.lap = 0
 
-                except Exception:
-                    pass
+                        trainset = np.asarray(self.trainset)
+                        np.savetxt('data.csv', trainset, delimiter=',')
+                        self.trainset = []
 
         '''
         is_control_updated = False

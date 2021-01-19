@@ -4,8 +4,11 @@
 #include <algorithm>
 #include <array>
 #include <math.h>
+#include <stdio.h>
 
 #include "franka_control/SlidingController.h"
+
+#define DDX_MAX 1.0
 
 namespace franka_control
 {
@@ -14,14 +17,46 @@ namespace franka_control
     {
         model_ptr_ = model_ptr;
 
-        for (int i = 0; i < 3; ++i)
+        set_stiffness({{1000, 200, 200, 20, 20, 20}}, 1.0);
+        set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
+    }
+
+    void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
+    {
+        // Compliance parameters
+        Eigen::MatrixXd stiffness_matrix(6, 6), damping_matrix(6, 6);
+        stiffness_matrix.setZero();
+        damping_matrix.setZero();
+
+        for (int i = 0; i < 6; ++i)
         {
-            x_max_[i] = 0.0;
-            dx_max_[i] = 0.0;
+            stiffness_matrix(i, i) = stiffness_coefficient[i];
+            damping_matrix(i, i) = damping_coefficient * sqrt(stiffness_coefficient[i]);
         }
 
-        set_stiffness({{200, 200, 200, 20, 20, 20}}, 1.0);
-        set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
+        stiffness_ = stiffness_matrix;
+        damping_ = damping_matrix;
+    }
+
+    void SlidingController::set_sliding_parameter(const double force, const std::array<double, 3> &distance, const std::array<double, 3> &speed)
+    {
+        force_ = force;
+        x_max_ = distance;
+        dx_max_ = speed;
+
+        for (int i = 0; i < 3; ++i)
+        {
+            if (x_max_[i] != 0.0)
+            {
+                sgn_[i] = x_max_[i] / std::abs(x_max_[i]);
+                omega_[i] = 2 * DDX_MAX / std::abs(dx_max_[i]);
+                accel_time_[i] = M_PI / omega_[i];
+                const_v_time_[i] = (std::abs(x_max_[i]) - 2 * DDX_MAX * M_PI / (omega_[i] * omega_[i])) / std::abs(dx_max_[i]);
+                time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
+            }
+        }
+
+        time_ = 0.0;
     }
 
     franka::CartesianVelocities SlidingController::sliding_control_callback(const franka::RobotState &robot_state, franka::Duration period)
@@ -35,35 +70,30 @@ namespace franka_control
             initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
+            dx_.fill(0.0);
         }
 
-        std::array<double, 3> dx;
-        dx.fill(0.0);
-
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; i++)
         {
             if (x_max_[i] != 0.0)
             {
                 if (time_ <= accel_time_[i])
                 {
-                    dx[i] = dx_max_[i] * std::sin(omega_[i] * time_);
+                    dx_[i] = sgn_[i] * (DDX_MAX / omega_[i] - DDX_MAX / omega_[i] * std::cos(omega_[i] * time_));
                 }
-                else if (time_ <= const_v_time_[i] + accel_time_[i])
+                else if (time_ > const_v_time_[i] + accel_time_[i] && time_ <= time_max_[i])
                 {
-                    dx[i] = dx_max_[i];
-                }
-                else if (time_ <= time_max_[i])
-                {
-                    dx[i] = dx_max_[i] * std::sin(omega_[i] * (time_ - const_v_time_[i]));
+                    dx_[i] = sgn_[i] * (DDX_MAX / omega_[i] - DDX_MAX / omega_[i] * std::cos(omega_[i] * (time_ - const_v_time_[i])));
                 }
             }
         }
 
-        franka::CartesianVelocities output = {{dx[0], dx[1], dx[2], 0.0, 0.0, 0.0}};
+        franka::CartesianVelocities output = {{dx_[0], dx_[1], dx_[2], 0.0, 0.0, 0.0}};
 
-        if (time_ > *std::max_element(time_max_.begin(), time_max_.end()))
+        if (time_ >= *std::max_element(time_max_.begin(), time_max_.end()))
         {
             output.motion_finished = true;
+            time_ = 0.0;
         }
 
         return output;
@@ -169,56 +199,17 @@ namespace franka_control
         franka::Torques output(tau_d_array);
 
         std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
-        if (std::abs(wrench_ext[2]) >= 10.0)
+        if (std::abs(wrench_ext[2]) >= 8.0)
         {
             output.motion_finished = true;
+            time_ = 0.0;
         }
         else
         {
-            position_d_[0] += 1e-5;
+            position_d_[0] += 1e-6;
             position_d_[2] -= 5e-5;
         }
 
         return output;
-    }
-
-    void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
-    {
-        // Compliance parameters
-        Eigen::MatrixXd stiffness_matrix(6, 6), damping_matrix(6, 6);
-        stiffness_matrix.setZero();
-        damping_matrix.setZero();
-
-        for (int i = 0; i < 6; ++i)
-        {
-            stiffness_matrix(i, i) = stiffness_coefficient[i];
-            damping_matrix(i, i) = damping_coefficient * sqrt(stiffness_coefficient[i]);
-        }
-
-        stiffness_ = stiffness_matrix;
-        damping_ = damping_matrix;
-    }
-
-    void SlidingController::set_sliding_parameter(const double force, const std::array<double, 3> &distance, const std::array<double, 3> &speed)
-    {
-        force_ = force;
-
-        x_max_ = distance;
-        dx_max_ = speed;
-
-        for (int i = 0; i < 3; ++i)
-        {
-            if (std::abs(x_max_[i]) > 0.0)
-            {
-                double ddx_max = std::abs(dx_max_[i]) * dx_max_[i] / 1.5;
-
-                omega_[i] = dx_max_[i] / ddx_max;
-                accel_time_[i] = M_PI_2 / omega_[i];
-                const_v_time_[i] = (x_max_[i] - 2 * ddx_max) / dx_max_[i];
-                time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
-            }
-        }
-
-        time_ = 0.0;
     }
 } // namespace franka_control
