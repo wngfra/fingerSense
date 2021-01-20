@@ -79,8 +79,8 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = 0
 
-        self.speeds = np.linspace(0.01, 0.1, 10)
-        self.force = 0.1
+        self.speeds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
+        self.force = 1.5
         self.trainset = []
 
     def get_params(self):
@@ -107,7 +107,7 @@ class PerceptionAgent(Node):
 
         # training
         self.trainset.append(raw_data)
-        if self.index <= len(self.speeds):
+        if self.index < len(self.speeds):
             x = 0.26 * self.direction
             dx = self.speeds[self.index] * self.direction
                        
@@ -127,7 +127,8 @@ class PerceptionAgent(Node):
                         self.lap = 0
 
                         trainset = np.asarray(self.trainset)
-                        np.savetxt('data.csv', trainset, delimiter=',')
+                        filename = self.save_dir + 'BlackWool_' + str(self.force) + '_' + str(dx) + '.csv'
+                        np.savetxt(filename, trainset, delimiter=',', fmt='%d')
                         self.trainset = []
 
         '''
