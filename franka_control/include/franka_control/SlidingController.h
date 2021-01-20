@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 
+#include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
 #include <franka/duration.h>
@@ -33,11 +34,12 @@ namespace franka_control
         Eigen::Affine3d initial_transform_;
         Eigen::Vector3d position_d_;
         Eigen::Quaterniond orientation_d_;
+        Eigen::VectorXd tau_ext_, tau_error_integral_;
 
         franka::RobotState initial_state_;
 
         std::array<double, 3> x_max_, dx_max_, dx_, sgn_, omega_, accel_time_, const_v_time_, time_max_;
 
-        double force_, force_error_integral_, time_;
+        double force_, time_;
     };
 } // namespace franka_control

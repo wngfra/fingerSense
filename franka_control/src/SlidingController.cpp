@@ -65,12 +65,14 @@ namespace franka_control
 
         if (time_ == 0.0)
         {
-            force_error_integral_ = 0.0;
             initial_state_ = robot_state;
             initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
             dx_.fill(0.0);
+
+            // init integrator
+            tau_error_integral_.setZero();
         }
 
         for (int i = 0; i < 3; i++)
@@ -105,49 +107,29 @@ namespace franka_control
         constexpr double k_i = 1e-6;
 
         // get state variables
-        std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
+        std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
-        // convert to Eigen
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
-        Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-        Eigen::Vector3d position(transform.translation());
-        Eigen::Quaterniond orientation(transform.linear());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
 
-        // compute error to desired equilibrium pose
-        // position error
-        std::array<double, 16> pose_d(robot_state.O_T_EE_d);
-        position_d_[0] = pose_d[12];
-        position_d_[1] = pose_d[13];
+        tau_ext_ = tau_measured - gravity;
 
-        std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
+        // TODO: PID control on force-torque directly
+        Eigen::VectorXd tau_d(7), desired_force_torque(6), tau_cmd(7), tau_ext(7);
+        desired_force_torque.setZero();
+        desired_force_torque(2) = -force_;
+        tau_ext << tau_measured - gravity - initial_tau_ext_;
+        tau_d << jacobian.transpose() * desired_force_torque;
+        tau_error_integral_ += period.toSec() * (tau_d - tau_ext);
+        // FF + PI control
+        tau_cmd << tau_d + k_p * (tau_d - tau_ext) + k_i * tau_error_integral_;
 
-        force_error_integral_ += period.toSec() * (-force_ - wrench_ext[2]);
-        position_d_[2] += k_p * (-force_ - wrench_ext[2]) + k_i * force_error_integral_;
+        // Smoothly update the mass to reach the desired target value
+        desired_mass = filter_gain * target_mass + (1 - filter_gain) * desired_mass;
 
-        Eigen::Matrix<double, 6, 1> error;
-        error.head(3) << position - position_d_;
-        // orientation error
-        // "difference" quaternion
-        if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0)
-        {
-            orientation.coeffs() << -orientation.coeffs();
-        }
-        // "difference" quaternion
-        Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
-        error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-        // Transform to base frame
-        error.tail(3) << -transform.linear() * error.tail(3);
-        // compute control
-        Eigen::VectorXd tau_task(7), tau_d(7);
-        // Spring damper system with damping
-        tau_task << jacobian.transpose() * (-stiffness_ * error - damping_ * (jacobian * dq));
-        tau_d << tau_task + coriolis;
         std::array<double, 7> tau_d_array{};
-        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
-
+        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
         return tau_d_array;
     }
 
