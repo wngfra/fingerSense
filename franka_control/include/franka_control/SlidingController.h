@@ -42,7 +42,7 @@ namespace franka_control
 
         double force_, time_, desired_force_;
 
-        const double FILTER_GAIN{0.001};
+        const double FILTER_GAIN{0.01};
         const double K_p{1.0};
         const double K_i{2.0};
     };

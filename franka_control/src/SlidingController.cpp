@@ -113,14 +113,15 @@ namespace franka_control
         std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
 
         Eigen::VectorXd tau_d(7), desired_force_torque(6), tau_cmd(7), tau_ext(7);
 
+        // REVIEW: smooth force control not working
         desired_force_torque.setZero();
         desired_force_torque(2) = -desired_force_;
-        tau_ext << tau_measured - gravity - initial_tau_ext_;
+        tau_ext << tau_measured + gravity - initial_tau_ext_;
         tau_d << jacobian.transpose() * desired_force_torque;
         tau_error_integral_ += period.toSec() * (tau_d - tau_ext);
 
@@ -128,7 +129,7 @@ namespace franka_control
         tau_cmd << tau_d + K_p * (tau_d - tau_ext) + K_i * tau_error_integral_;
 
         // Smoothly update the mass to reach the desired target value
-        desired_force_ = FILTER_GAIN * +(1 - FILTER_GAIN) * force_;
+        desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * force_;
 
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
