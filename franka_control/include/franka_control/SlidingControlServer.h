@@ -55,7 +55,7 @@ namespace franka_control
         std::array<double, 3> speed;
         bool is_touched;
 
-        const std::array<double, 7> q_goal = {{0.137101,0.261749,0.0377466,-2.65514,0.0639547,2.9,0.938001}};
+        const std::array<double, 7> q_goal = {{0.108882,-0.235987,0.0255725,-2.60724,0.0482073,2.3529,0.929222}};
 
         std::shared_ptr<franka::Robot> robot_;
         std::unique_ptr<SlidingController> controller_;

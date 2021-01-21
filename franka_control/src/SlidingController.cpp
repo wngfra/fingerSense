@@ -72,7 +72,13 @@ namespace franka_control
             dx_.fill(0.0);
 
             // init integrator
-            tau_error_integral_.setZero();
+            tau_error_integral_ = Eigen::VectorXd::Zero(7);
+
+            // Bias torque sensor
+            std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
+            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_tau_measured(initial_state_.tau_J.data());
+            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_gravity(gravity_array.data());
+            initial_tau_ext_ = initial_tau_measured - initial_gravity;
         }
 
         for (int i = 0; i < 3; i++)
@@ -103,9 +109,6 @@ namespace franka_control
 
     franka::Torques SlidingController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
-        constexpr double k_p = 1e-6;
-        constexpr double k_i = 1e-6;
-
         // get state variables
         std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
@@ -113,23 +116,23 @@ namespace franka_control
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
 
-        tau_ext_ = tau_measured - gravity;
-
-        // TODO: PID control on force-torque directly
         Eigen::VectorXd tau_d(7), desired_force_torque(6), tau_cmd(7), tau_ext(7);
+
         desired_force_torque.setZero();
-        desired_force_torque(2) = -force_;
+        desired_force_torque(2) = -desired_force_;
         tau_ext << tau_measured - gravity - initial_tau_ext_;
         tau_d << jacobian.transpose() * desired_force_torque;
         tau_error_integral_ += period.toSec() * (tau_d - tau_ext);
+
         // FF + PI control
-        tau_cmd << tau_d + k_p * (tau_d - tau_ext) + k_i * tau_error_integral_;
+        tau_cmd << tau_d + K_p * (tau_d - tau_ext) + K_i * tau_error_integral_;
 
         // Smoothly update the mass to reach the desired target value
-        desired_mass = filter_gain * target_mass + (1 - filter_gain) * desired_mass;
+        desired_force_ = FILTER_GAIN * +(1 - FILTER_GAIN) * force_;
 
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
+
         return tau_d_array;
     }
 
