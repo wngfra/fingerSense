@@ -32,13 +32,18 @@ class Perceptum:
             dirs : list of strings
                 Directories of core, factors, info files
         '''
-        if dirs is not None:
-            # in shape (latent_dim, data_size)
-            self.core = np.load(dirs[0], allow_pickle=True).squeeze()
-            self.factors = np.load(dirs[1], allow_pickle=True)[0:2]
+        if None in dirs.values():
+            self.core = None
+            self.factors = None
+            self.info = None
+            self.features = None
+            self.count = 0
+        else:
+            self.core = np.load(dirs['core_dir'], allow_pickle=True).squeeze()
+            self.factors = np.load(dirs['factor_dir'], allow_pickle=True)[0:2]
+            info = pd.read_csv(dirs['info_dir'], delimiter=',')
+            
             self.features = {}
-
-            info = pd.read_csv(dirs[2], delimiter=',')
             class_names = info['class_name']
 
             '''
@@ -52,11 +57,6 @@ class Perceptum:
                 self.features[cn] = [mean, cov]
 
             self.count = self.core.shape[1]
-        else:
-            self.core = None
-            self.factors = None
-            self.features = None
-            self.count = 0
 
         self.jacobian = jax.jacfwd(KL_divergence_normal, 0)
 

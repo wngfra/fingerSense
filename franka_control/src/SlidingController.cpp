@@ -40,7 +40,7 @@ namespace franka_control
 
     void SlidingController::set_sliding_parameter(const double force, const std::array<double, 3> &distance, const std::array<double, 3> &speed)
     {
-        force_ = force;
+        target_force_ = force;
         x_max_ = distance;
         dx_max_ = speed;
 
@@ -126,10 +126,10 @@ namespace franka_control
         tau_error_integral_ += period.toSec() * (tau_d - tau_ext);
 
         // FF + PI control
-        tau_cmd << tau_d + K_p * (tau_d - tau_ext) + K_i * tau_error_integral_;
+        tau_cmd << tau_d + K_P * (tau_d - tau_ext) + K_I * tau_error_integral_;
 
         // Smoothly update the mass to reach the desired target value
-        desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * force_;
+        desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
 
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;

@@ -1,6 +1,7 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
 import numpy as np
+import os.path
 import rclpy
 from rclpy.node import Node
 
@@ -63,11 +64,7 @@ class PerceptionAgent(Node):
 
         # Create a perceptum class
         self.perceptum = Perceptum(
-            [
-                self.core_dir,
-                self.factor_dir,
-                self.info_dir
-            ],
+            self.dirs,
             LATENT_DIM,  # latent dimension
             NUM_BASIS,  # number of basis
             STACK_SIZE,  # stack size
@@ -79,16 +76,29 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = 0
 
-        self.speeds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
-        self.force = 10.0
+        self.speeds = [0.01, 0.02, 0.03, 0.04,
+                       0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
+        self.force = 1.0
         self.trainset = []
 
     def get_params(self):
         self.save_dir = str(self.get_parameter('save_dir').value)
-        self.core_dir = str(self.get_parameter('core_dir').value)
-        self.factor_dir = str(self.get_parameter('factor_dir').value)
-        self.info_dir = str(self.get_parameter('info_dir').value)
         self.mode = str(self.get_parameter('mode').value)
+
+        core_dir = str(self.get_parameter('core_dir').value)
+        factor_dir = str(self.get_parameter('factor_dir').value)
+        info_dir = str(self.get_parameter('info_dir').value)
+
+        self.dirs = {
+            'core_dir':   core_dir,
+            'factor_dir': factor_dir,
+            'info_dir':   info_dir
+        }
+
+        # If file not exists, set dir to None
+        for k, d in self.dirs.items():
+            if not os.path.exists(d):
+                self.dirs[k] = None
 
     def robot_callback(self, msg):
         self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
@@ -110,26 +120,28 @@ class PerceptionAgent(Node):
         if self.index < len(self.speeds):
             x = 0.26 * self.direction
             dx = self.speeds[self.index] * self.direction
-                       
+
             try:
                 response = self.sliding_control_future.result()
                 success = response.success
             except Exception:
                 success = False
-                
+
             if self.index == 0 and self.lap == 0 or success:
-                    self.send_sliding_control_request(self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
-                    self.lap += 1
-                    self.direction *= -1.0
+                self.send_sliding_control_request(
+                    self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+                self.lap += 1
+                self.direction *= -1.0
 
-                    if self.lap > 5:
-                        self.index += 1
-                        self.lap = 0
+                if self.lap > 5:
+                    self.index += 1
+                    self.lap = 0
 
-                        trainset = np.asarray(self.trainset)
-                        filename = self.save_dir + 'BlackWool_' + str(self.force) + '_' + str(dx) + '.csv'
-                        np.savetxt(filename, trainset, delimiter=',', fmt='%d')
-                        self.trainset = []
+                    trainset = np.asarray(self.trainset)
+                    filename = self.save_dir + 'BlackWool_' + \
+                        str(self.force) + '_' + str(dx) + '.csv'
+                    np.savetxt(filename, trainset, delimiter=',', fmt='%d')
+                    self.trainset = []
 
         '''
         is_control_updated = False
