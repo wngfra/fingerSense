@@ -2,9 +2,8 @@
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
 #include <algorithm>
-#include <array>
 #include <math.h>
-#include <stdio.h>
+#include <numeric>
 
 #include "franka_control/SlidingController.h"
 
@@ -13,9 +12,10 @@
 namespace franka_control
 {
 
-    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr)
+    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<std::array<int32_t, 16>> data_holder)
     {
         model_ptr_ = model_ptr;
+        tactile_data_holder_ = data_holder;
 
         set_stiffness({{1000, 200, 200, 20, 20, 20}}, 1.0);
         set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
@@ -70,15 +70,8 @@ namespace franka_control
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
             dx_.fill(0.0);
-
-            // init integrator
-            tau_error_integral_ = Eigen::VectorXd::Zero(7);
-
-            // Bias torque sensor
-            std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
-            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_tau_measured(initial_state_.tau_J.data());
-            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_gravity(gravity_array.data());
-            initial_tau_ext_ = initial_tau_measured - initial_gravity;
+            desired_force_ = 0.0;
+            force_error_integral_ = 0.0;
         }
 
         for (int i = 0; i < 3; i++)
@@ -110,29 +103,48 @@ namespace franka_control
     franka::Torques SlidingController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         // get state variables
-        std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
+        std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
+        // convert to Eigen
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+        Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
+        Eigen::Vector3d position(transform.translation());
+        Eigen::Quaterniond orientation(transform.linear());
 
-        Eigen::VectorXd tau_d(7), desired_force_torque(6), tau_cmd(7), tau_ext(7);
+        // compute error to desired equilibrium pose
+        // position error
+        std::array<double, 16> pose_d(robot_state.O_T_EE_d);
+        position_d_[0] = pose_d[12];
+        position_d_[1] = pose_d[13];
 
-        // REVIEW: smooth force control not working
-        desired_force_torque.setZero();
-        desired_force_torque(2) = -desired_force_;
-        tau_ext << tau_measured + gravity - initial_tau_ext_;
-        tau_d << jacobian.transpose() * desired_force_torque;
-        tau_error_integral_ += period.toSec() * (tau_d - tau_ext);
-
-        // FF + PI control
-        tau_cmd << tau_d + K_P * (tau_d - tau_ext) + K_I * tau_error_integral_;
-
-        // Smoothly update the mass to reach the desired target value
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
+        double force_error = desired_force_ - get_average_tactile();
+        force_error_integral_ += period.toSec() * force_error;
+        position_d_[2] -= K_P * force_error + K_I * force_error_integral_;
 
+        Eigen::Matrix<double, 6, 1> error;
+        error.head(3) << position - position_d_;
+        // orientation error
+        // "difference" quaternion
+        if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0)
+        {
+            orientation.coeffs() << -orientation.coeffs();
+        }
+        // "difference" quaternion
+        Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
+        error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+        // Transform to base frame
+        error.tail(3) << -transform.linear() * error.tail(3);
+        // compute control
+        Eigen::VectorXd tau_task(7), tau_d(7);
+        // Spring damper system with damping
+        tau_task << jacobian.transpose() * (-stiffness_ * error - damping_ * (jacobian * dq));
+        tau_d << tau_task + coriolis;
         std::array<double, 7> tau_d_array{};
-        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_cmd;
+        Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
         return tau_d_array;
     }
@@ -146,6 +158,12 @@ namespace franka_control
             initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
+
+            // Bias torque sensor
+            std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
+            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_tau_measured(initial_state_.tau_J.data());
+            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_gravity(gravity_array.data());
+            initial_tau_ext_ = initial_tau_measured - initial_gravity;
         }
 
         // get state variables
@@ -198,4 +216,15 @@ namespace franka_control
 
         return output;
     }
+
+    double SlidingController::debug_info() const
+    {
+        return get_average_tactile();
+    }
+
+    double SlidingController::get_average_tactile() const
+    {
+        return std::accumulate(tactile_data_holder_->begin(), tactile_data_holder_->end(), 0) / 16.0;
+    }
+
 } // namespace franka_control

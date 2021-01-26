@@ -21,13 +21,15 @@ namespace franka_control
     class SlidingControlServer : public rclcpp::Node
     {
     public:
-        SlidingControlServer(std::shared_ptr<franka::Robot> robot) : Node("sliding_control_server")
+        SlidingControlServer(std::shared_ptr<franka::Robot> robot, std::shared_ptr<std::array<int32_t, 16>> data_holder) : Node("sliding_control_server")
         {
             robot_ = robot;
+            tactile_data_holder_ = data_holder;
+
             setDefaultBehavior(*robot_);
             auto model_ptr = std::make_shared<franka::Model>(robot_->loadModel());
 
-            controller_ = std::make_unique<SlidingController>(model_ptr);
+            controller_ = std::make_unique<SlidingController>(model_ptr, tactile_data_holder_);
             controller_->set_stiffness({{3500, 1000, 1000, 300, 300, 300}}, 1.0);
 
             service_ = this->create_service<franka_interfaces::srv::SlidingControl>("/sliding_control", std::bind(&SlidingControlServer::controlled_slide, this, std::placeholders::_1, std::placeholders::_2));
@@ -58,6 +60,7 @@ namespace franka_control
         const std::array<double, 7> q_goal = {{0.108882,-0.235987,0.0255725,-2.60724,0.0482073,2.3529,0.929222}};
 
         std::shared_ptr<franka::Robot> robot_;
+        std::shared_ptr<std::array<int32_t, 16>> tactile_data_holder_;
         std::unique_ptr<SlidingController> controller_;
     };
 } // namespace franka_control

@@ -34,6 +34,7 @@ namespace franka_control
                         return controller_->force_control_callback(robot_state, period);
                     },
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                        RCLCPP_INFO(get_logger(), "average tactile reading %f", controller_->debug_info());
                         return controller_->sliding_control_callback(robot_state, period);
                     });
             }

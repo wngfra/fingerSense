@@ -27,8 +27,8 @@ find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.8.0 REQUIRED)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+# set(THREADS_PREFER_PTHREAD_FLAG ON)
+# find_package(Threads REQUIRED)
 
 include_directories(
   include
@@ -52,12 +52,12 @@ add_library(franka_state_publisher STATIC
   src/FrankaStatePublisher.cpp
 )
 
-add_library(node_state_manager STATIC
-  src/NodeStateManager.cpp
-)
-
 add_library(sliding_control_server STATIC
   src/SlidingControlServer.cpp
+)
+
+add_library(tactile_subscriber STATIC
+  src/TactileSubscriber.cpp
 )
 
 ament_target_dependencies(franka_state_publisher
@@ -65,13 +65,13 @@ ament_target_dependencies(franka_state_publisher
   "rclcpp"
 )
 
-ament_target_dependencies(node_state_manager
-  "tactile_interfaces"
+ament_target_dependencies(sliding_control_server
+  "franka_interfaces"
   "rclcpp"
 )
 
-ament_target_dependencies(sliding_control_server
-  "franka_interfaces"
+ament_target_dependencies(tactile_subscriber
+  "tactile_interfaces"
   "rclcpp"
 )
 
@@ -85,10 +85,10 @@ foreach(target ${APPS})
   target_link_libraries(${target}
     common
     franka_state_publisher
-    node_state_manager
     sliding_controller
     sliding_control_server
-    Threads::Threads
+    tactile_subscriber
+    # Threads::Threads
     Franka::Franka)
   ament_target_dependencies(${target}
     "rclcpp")
