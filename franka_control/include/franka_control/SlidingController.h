@@ -28,7 +28,7 @@ namespace franka_control
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
 
-        double debug_info() const;
+        double debug_info;
 
     private:
         double get_average_tactile() const;
@@ -49,7 +49,7 @@ namespace franka_control
         double target_force_, time_, desired_force_, force_error_integral_;
 
         const double FILTER_GAIN{1e-2};
-        const double K_P{1e-7};
-        const double K_I{2e-5};
+        const double K_P{1e-5};
+        const double K_I{1e-5};
     };
 } // namespace franka_control

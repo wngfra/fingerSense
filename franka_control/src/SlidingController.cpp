@@ -73,6 +73,7 @@ namespace franka_control
             desired_force_ = 0.0;
             force_error_integral_ = 0.0;
         }
+        debug_info = get_average_tactile();
 
         for (int i = 0; i < 3; i++)
         {
@@ -108,7 +109,6 @@ namespace franka_control
         // convert to Eigen
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
         Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
         Eigen::Vector3d position(transform.translation());
@@ -119,6 +119,7 @@ namespace franka_control
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
         position_d_[0] = pose_d[12];
         position_d_[1] = pose_d[13];
+        position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         double force_error = desired_force_ - get_average_tactile();
@@ -172,7 +173,6 @@ namespace franka_control
         // convert to Eigen
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
         Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
         Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
         Eigen::Vector3d position(transform.translation());
@@ -215,11 +215,6 @@ namespace franka_control
         }
 
         return output;
-    }
-
-    double SlidingController::debug_info() const
-    {
-        return get_average_tactile();
     }
 
     double SlidingController::get_average_tactile() const

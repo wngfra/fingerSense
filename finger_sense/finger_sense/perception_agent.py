@@ -118,7 +118,7 @@ class PerceptionAgent(Node):
         # training
         self.trainset.append(raw_data)
         if self.index < len(self.speeds):
-            x = 0.26 * self.direction
+            x = 0.2 * self.direction
             dx = self.speeds[self.index] * self.direction
 
             try:
