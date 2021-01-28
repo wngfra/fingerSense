@@ -21,14 +21,14 @@ namespace franka_control
     class SlidingControlServer : public rclcpp::Node
     {
     public:
-        SlidingControlServer(std::shared_ptr<franka::Robot> robot, float *average_force) : Node("sliding_control_server")
+        SlidingControlServer(std::shared_ptr<franka::Robot> robot, std::shared_ptr<float> fp) : Node("sliding_control_server")
         {
             robot_ = robot;
 
             setDefaultBehavior(*robot_);
             auto model_ptr = std::make_shared<franka::Model>(robot_->loadModel());
 
-            controller_ = std::make_unique<SlidingController>(model_ptr, average_force);
+            controller_ = std::make_unique<SlidingController>(model_ptr, fp);
             controller_->set_stiffness({{3500, 1000, 1000, 300, 300, 300}}, 1.0);
 
             service_ = this->create_service<franka_interfaces::srv::SlidingControl>("/sliding_control", std::bind(&SlidingControlServer::controlled_slide, this, std::placeholders::_1, std::placeholders::_2));

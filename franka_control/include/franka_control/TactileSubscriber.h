@@ -17,19 +17,18 @@ namespace franka_control
     class TactileSubscriber : public rclcpp::Node
     {
     public:
-        TactileSubscriber(float *average_force) : Node("tactiel_signal_subscriber")
+        TactileSubscriber(std::shared_ptr<float> fp) : Node("tactiel_signal_subscriber")
         {
             subscription_ = this->create_subscription<tactile_interfaces::msg::TactileSignal>("tactile_signals", 10, std::bind(&TactileSubscriber::topic_callback, this, _1));
 
-            average_force = average_force_;
+            fp_ = fp;
         }
 
     private:
         void topic_callback(const tactile_interfaces::msg::TactileSignal::SharedPtr msg);
 
         rclcpp::Subscription<tactile_interfaces::msg::TactileSignal>::SharedPtr subscription_;
-        std::array<int32_t, 16> data_array_;
-
-        float *average_force_;
+        
+        std::shared_ptr<float> fp_;
     };
 } // namespace franka_control

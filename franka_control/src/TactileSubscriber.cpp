@@ -8,9 +8,10 @@ namespace franka_control
 {
     void TactileSubscriber::topic_callback(const tactile_interfaces::msg::TactileSignal::SharedPtr msg)
     {
-        data_array_ = msg->data;
-        *average_force_ = std::accumulate(data_array_.begin(), data_array_.end(), 0) / 16.0;
-        RCLCPP_INFO(get_logger(), "average force: %f", *average_force_);
+        auto data_array = msg->data;
+        *fp_ = std::accumulate(data_array.begin(), data_array.end(), 0) / 16.0;
+        
+        RCLCPP_INFO(get_logger(), "average force: %f", *fp_);
     }
 
 } // namespace franka_control

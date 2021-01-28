@@ -12,10 +12,10 @@
 namespace franka_control
 {
 
-    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr, float *average_force)
+    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<float> fp)
     {
         model_ptr_ = model_ptr;
-        average_force_ = average_force;
+        fp_ = fp;
 
         set_stiffness({{1000, 200, 200, 20, 20, 20}}, 1.0);
         set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
@@ -121,7 +121,7 @@ namespace franka_control
         position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
-        double force_error = desired_force_ - *average_force_;
+        double force_error = desired_force_ - *fp_;
         force_error_integral_ += period.toSec() * force_error;
         position_d_[2] -= K_P * force_error + K_I * force_error_integral_;
 
