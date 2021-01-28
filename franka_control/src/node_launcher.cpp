@@ -23,16 +23,17 @@ int main(int argc, char **argv)
     auto O_F_ext_hat_K = std::make_shared<std::array<double, 6>>();
     auto position = std::make_shared<std::array<double, 3>>();
     auto quaternion = std::make_shared<std::array<double, 4>>();
-    auto data_holder = std::make_shared<std::array<int32_t, 16>>();
+    float *average_force = new float(0.0);
 
     auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(O_F_ext_hat_K, position, quaternion);
-    auto control_server_handler = std::make_shared<franka_control::SlidingControlServer>(robot, data_holder);
-    auto tactile_subscriber = std::make_shared<franka_control::TactileSubscriber>(data_holder);
+    auto control_server_handler = std::make_shared<franka_control::SlidingControlServer>(robot, average_force);
+    // TODO: pointer error to fix
+    // auto tactile_subscriber = std::make_shared<franka_control::TactileSubscriber>(average_force);
     
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(publisher_handler);
     executor.add_node(control_server_handler);
-    executor.add_node(tactile_subscriber);
+    // executor.add_node(tactile_subscriber);
     executor.spin();
 
     rclcpp::shutdown();

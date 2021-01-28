@@ -12,10 +12,10 @@
 namespace franka_control
 {
 
-    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<std::array<int32_t, 16>> data_holder)
+    SlidingController::SlidingController(const std::shared_ptr<franka::Model> model_ptr, float *average_force)
     {
         model_ptr_ = model_ptr;
-        tactile_data_holder_ = data_holder;
+        average_force_ = average_force;
 
         set_stiffness({{1000, 200, 200, 20, 20, 20}}, 1.0);
         set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
@@ -59,7 +59,7 @@ namespace franka_control
         time_ = 0.0;
     }
 
-    franka::CartesianVelocities SlidingController::sliding_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    franka::CartesianVelocities SlidingController::linear_motion_generator(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
@@ -73,7 +73,6 @@ namespace franka_control
             desired_force_ = 0.0;
             force_error_integral_ = 0.0;
         }
-        debug_info = get_average_tactile();
 
         for (int i = 0; i < 3; i++)
         {
@@ -122,7 +121,7 @@ namespace franka_control
         position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
-        double force_error = desired_force_ - get_average_tactile();
+        double force_error = desired_force_ - *average_force_;
         force_error_integral_ += period.toSec() * force_error;
         position_d_[2] -= K_P * force_error + K_I * force_error_integral_;
 
@@ -150,7 +149,7 @@ namespace franka_control
         return tau_d_array;
     }
 
-    franka::Torques SlidingController::touch_control_callback(const franka::RobotState &robot_state, franka::Duration period)
+    franka::Torques SlidingController::dynamic_impedance_control(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
@@ -216,10 +215,4 @@ namespace franka_control
 
         return output;
     }
-
-    double SlidingController::get_average_tactile() const
-    {
-        return std::accumulate(tactile_data_holder_->begin(), tactile_data_holder_->end(), 0) / 16.0;
-    }
-
 } // namespace franka_control

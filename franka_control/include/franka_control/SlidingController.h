@@ -18,21 +18,17 @@ namespace franka_control
     class SlidingController
     {
     public:
-        SlidingController(const std::shared_ptr<franka::Model>, std::shared_ptr<std::array<int32_t, 16>> data_holder);
+        SlidingController(const std::shared_ptr<franka::Model>, float *average_force);
         // ~SlidingController();
 
         void set_stiffness(const std::array<double, 6> &, const double);
         void set_sliding_parameter(const double, const std::array<double, 3> &, const std::array<double, 3> &);
 
-        franka::CartesianVelocities sliding_control_callback(const franka::RobotState &, franka::Duration);
+        franka::CartesianVelocities linear_motion_generator(const franka::RobotState &, franka::Duration);
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
-        franka::Torques touch_control_callback(const franka::RobotState &, franka::Duration);
-
-        double debug_info;
+        franka::Torques dynamic_impedance_control(const franka::RobotState &, franka::Duration);
 
     private:
-        double get_average_tactile() const;
-
         std::shared_ptr<franka::Model> model_ptr_;
 
         Eigen::MatrixXd stiffness_, damping_;
@@ -44,9 +40,9 @@ namespace franka_control
         franka::RobotState initial_state_;
 
         std::array<double, 3> x_max_, dx_max_, dx_, sgn_, omega_, accel_time_, const_v_time_, time_max_;
-        std::shared_ptr<std::array<int32_t, 16>> tactile_data_holder_;
 
         double target_force_, time_, desired_force_, force_error_integral_;
+        float *average_force_;
 
         const double FILTER_GAIN{1e-2};
         const double K_P{1e-5};
