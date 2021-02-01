@@ -16,9 +16,6 @@ namespace franka_control
     {
         model_ptr_ = model_ptr;
         fp_ = fp;
-
-        set_stiffness({{1000, 200, 200, 20, 20, 20}}, 1.0);
-        set_sliding_parameter(0.0, {{0.0, 0.0, 0.0}}, {{0.0, 0.0, 0.0}});
     }
 
     void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
@@ -121,7 +118,8 @@ namespace franka_control
         position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
-        double force_error = desired_force_ - *fp_;
+        // compute force error using the robot wrench sensors
+        double force_error = desired_force_ - (-robot_state.O_F_ext_hat_K[2]);
         force_error_integral_ += period.toSec() * force_error;
         position_d_[2] -= K_P * force_error + K_I * force_error_integral_;
 

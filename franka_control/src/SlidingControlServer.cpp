@@ -19,18 +19,22 @@ namespace franka_control
             {
                 if (!is_touched)
                 {
+                    controller_->set_stiffness({{1000, 1000, 1000, 300, 300, 300}}, 1.0);
                     robot_->control(
                         [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                            update_franka_states(robot_state);
                             return controller_->dynamic_impedance_control(robot_state, period);
                         });
 
                     is_touched = true;
                     RCLCPP_INFO(this->get_logger(), "Touched the platform.");
+                    controller_->set_stiffness({{3500, 1000, 1500, 300, 150, 300}}, 1.0);
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
+                        update_franka_states(robot_state);
                         return controller_->force_control_callback(robot_state, period);
                     },
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
@@ -42,6 +46,7 @@ namespace franka_control
                 RCLCPP_INFO(this->get_logger(), "Moving distance: (%f, %f, %f), speed: (%f, %f, %f).", distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                        update_franka_states(robot_state);
                         return controller_->linear_motion_generator(robot_state, period);
                     });
                 is_touched = false;
@@ -65,4 +70,11 @@ namespace franka_control
             response->recovered = true;
         }
     }
+
+    void SlidingControlServer::update_franka_states(const franka::RobotState &robot_state) const
+    {
+        franka_states_->external_wrench = robot_state.O_F_ext_hat_K;
+        franka_states_->end_effector_pose = robot_state.O_T_EE;
+    }
+
 } // namespace franka_control

@@ -16,11 +16,11 @@
  * Contains common types and functions for the examples.
  */
 
-/**
- * Gets current robot state for external wrench, end-effetor positon and orientation (quaternion)
- *
- */
-void getFrankaState(const franka::RobotState &, std::array<double, 6> &, std::array<double, 3> &, std::array<double, 4> &);
+struct FrankaStates
+{
+  std::array<double, 6> external_wrench;
+  std::array<double, 16> end_effector_pose;
+};
 
 /**
  * Gets a real-time configuration based on linux kernel version

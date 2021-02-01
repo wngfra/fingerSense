@@ -36,7 +36,7 @@ class PerceptionAgent(Node):
         self.get_params()
 
         self.count = 0
-        self.robot_state = np.zeros((1, 13), dtype=np.float64)
+        self.robot_state = [np.zeros(6), np.zeros(16)]
         self.tactile_stack = np.zeros((STACK_SIZE, 16), dtype=np.float32)
 
         self.sub_robot = self.create_subscription(
@@ -74,11 +74,11 @@ class PerceptionAgent(Node):
         self.direction = 1.0
 
         self.lap = 0
-        self.index = 0
+        self.index = [0, 0]
 
-        self.speeds = [0.01, 0.02, 0.03, 0.04,
-                       0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
-        self.force = 3.0
+        self.forces = [0.5*i for i in range(10, 0, -1)]
+        self.speeds = [0.01*j for j in range(10, 0, -1)]
+
         self.trainset = []
 
     def get_params(self):
@@ -101,9 +101,7 @@ class PerceptionAgent(Node):
                 self.dirs[k] = None
 
     def robot_callback(self, msg):
-        self.robot_state[0, 0:6] = msg.o_f_ext_hat_k
-        self.robot_state[0, 6:9] = msg.position
-        self.robot_state[0, 9:13] = msg.quaternion
+        self.robot_state = [msg.o_f_ext_hat_k, msg.o_t_ee]
 
     def tactile_callback(self, msg):
         raw_data = msg.data
@@ -116,32 +114,37 @@ class PerceptionAgent(Node):
                 self.tactile_stack[-1, :] = raw_data
 
         # training
-        self.trainset.append(raw_data)
-        if self.index < len(self.speeds):
-            x = 0.2 * self.direction
-            dx = self.speeds[self.index] * self.direction
+        if self.index[0] < len(self.forces):
+            self.trainset.append(raw_data)
 
-            try:
-                response = self.sliding_control_future.result()
-                success = response.success
-            except Exception:
-                success = False
+            if self.index[1] >= len(self.speeds):
+                self.index[0] += 1
+                self.index[1] = 0
+            else:
+                try:
+                    response = self.sliding_control_future.result()
+                    success = response.success
+                except Exception:
+                    success = False
 
-            if self.index == 0 and self.lap == 0 or success:
-                self.send_sliding_control_request(
-                    self.force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
-                self.lap += 1
-                self.direction *= -1.0
+                if self.index[0] == 0 and self.lap == 0 or success:
+                    force = self.forces[self.index[0]]
+                    dx = self.speeds[self.index[1]] * self.direction
+                    x = 0.4 * self.direction
+                    self.send_sliding_control_request(
+                        force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+                    self.lap += 1
+                    self.direction *= -1.0
 
-                if self.lap > 5:
-                    self.index += 1
-                    self.lap = 0
+                    if self.lap > 3:
+                        self.index[1] += 1
+                        self.lap = 0
 
-                    trainset = np.asarray(self.trainset)
-                    filename = self.save_dir + 'BlackWool_' + \
-                        str(self.force) + '_' + str(dx) + '.csv'
-                    np.savetxt(filename, trainset, delimiter=',', fmt='%d')
-                    self.trainset = []
+                        trainset = np.asarray(self.trainset)
+                        filename = self.save_dir + 'BlackWool_' + \
+                            str(force) + '_' + str(dx) + '.csv'
+                        np.savetxt(filename, trainset, delimiter=',', fmt='%d')
+                        self.trainset = []
 
         '''
         is_control_updated = False

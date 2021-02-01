@@ -13,6 +13,8 @@
 #include <franka/model.h>
 #include <franka/robot.h>
 
+#include "common.h"
+
 namespace franka_control
 {
     class SlidingController
@@ -45,8 +47,8 @@ namespace franka_control
 
         double target_force_, time_, desired_force_, force_error_integral_;
 
-        const double FILTER_GAIN{1e-2};
-        const double K_P{1e-5};
-        const double K_I{1e-5};
+        const double FILTER_GAIN{0.1};
+        const double K_P{1e-3};
+        const double K_I{2e-3};
     };
 } // namespace franka_control
