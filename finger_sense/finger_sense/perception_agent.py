@@ -76,7 +76,7 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = [0.5*i for i in range(10, 0, -1)]
+        self.forces = [1.0*i for i in range(1, 11, 1)]
         self.speeds = [0.01*j for j in range(10, 0, -1)]
 
         self.trainset = []
@@ -141,7 +141,7 @@ class PerceptionAgent(Node):
                         self.lap = 0
 
                         trainset = np.asarray(self.trainset)
-                        filename = self.save_dir + 'BlackWool_' + \
+                        filename = self.save_dir + 'BrownPolymer_' + \
                             str(force) + '_' + str(dx) + '.csv'
                         np.savetxt(filename, trainset, delimiter=',', fmt='%d')
                         self.trainset = []

@@ -28,7 +28,7 @@ namespace franka_control
 
                     is_touched = true;
                     RCLCPP_INFO(this->get_logger(), "Touched the platform.");
-                    controller_->set_stiffness({{3500, 1000, 1500, 300, 150, 300}}, 1.0);
+                    controller_->set_stiffness({{3500, 1000, 500, 300, 100, 300}}, 1.0);
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
