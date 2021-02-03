@@ -49,6 +49,6 @@ namespace franka_control
 
         const double FILTER_GAIN{0.1};
         const double K_P{1e-3};
-        const double K_I{2e-3};
+        const double K_I = K_P * K_P / 4.0;
     };
 } // namespace franka_control

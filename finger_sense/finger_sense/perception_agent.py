@@ -12,6 +12,7 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
+DISTANCE = 0.26
 LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
@@ -124,13 +125,15 @@ class PerceptionAgent(Node):
                 try:
                     response = self.sliding_control_future.result()
                     success = response.success
+                    recovered = response.recovered
                 except Exception:
                     success = False
+                    recovered = False
 
-                if self.index[0] == 0 and self.lap == 0 or success:
+                if self.index[0] == 0 and self.lap == 0 or success or recovered:
                     force = self.forces[self.index[0]]
                     dx = self.speeds[self.index[1]] * self.direction
-                    x = 0.4 * self.direction
+                    x = DISTANCE * self.direction
                     self.send_sliding_control_request(
                         force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
                     self.lap += 1

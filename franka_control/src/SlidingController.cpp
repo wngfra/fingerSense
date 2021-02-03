@@ -7,7 +7,7 @@
 
 #include "franka_control/SlidingController.h"
 
-#define DDX_MAX 1.0
+#define ACCX 0.01
 
 namespace franka_control
 {
@@ -46,9 +46,9 @@ namespace franka_control
             if (x_max_[i] != 0.0)
             {
                 sgn_[i] = x_max_[i] / std::abs(x_max_[i]);
-                omega_[i] = 2 * DDX_MAX / std::abs(dx_max_[i]);
+                omega_[i] = std::abs(dx_max_[i]) * M_PI / ACCX;
                 accel_time_[i] = M_PI / omega_[i];
-                const_v_time_[i] = (std::abs(x_max_[i]) - 2 * DDX_MAX * M_PI / (omega_[i] * omega_[i])) / std::abs(dx_max_[i]);
+                const_v_time_[i] = std::abs(x_max_[i] / dx_max_[i]);
                 time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
             }
         }
@@ -75,13 +75,19 @@ namespace franka_control
         {
             if (x_max_[i] != 0.0)
             {
-                if (time_ <= accel_time_[i])
+
+                if (time_ > accel_time_[i] && time_ < const_v_time_[i] + accel_time_[i])
                 {
-                    dx_[i] = sgn_[i] * (DDX_MAX / omega_[i] - DDX_MAX / omega_[i] * std::cos(omega_[i] * time_));
+                    dx_[i] = dx_max_[i];
                 }
-                else if (time_ > const_v_time_[i] + accel_time_[i] && time_ <= time_max_[i])
+                else
                 {
-                    dx_[i] = sgn_[i] * (DDX_MAX / omega_[i] - DDX_MAX / omega_[i] * std::cos(omega_[i] * (time_ - const_v_time_[i])));
+                    double time = time_;
+                    if (time_ > const_v_time_[i] + accel_time_[i])
+                    {
+                        time -= const_v_time_[i];
+                    }
+                    dx_[i] = 0.5 * dx_max_[i] - 0.5 * dx_max_[i] * std::cos(omega_[i] * time);
                 }
             }
         }
@@ -114,7 +120,6 @@ namespace franka_control
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
         position_d_[0] = pose_d[12];
-        position_d_[1] = pose_d[13];
         position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;

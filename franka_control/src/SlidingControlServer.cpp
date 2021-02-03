@@ -20,7 +20,7 @@ namespace franka_control
                 if (!is_touched)
                 {
                     controller_->set_stiffness({{1000, 1000, 1000, 300, 300, 300}}, 1.0);
-                    robot_->control(
+                    robot_->control(    
                         [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                             update_franka_states(robot_state);
                             return controller_->dynamic_impedance_control(robot_state, period);
@@ -28,7 +28,7 @@ namespace franka_control
 
                     is_touched = true;
                     RCLCPP_INFO(this->get_logger(), "Touched the platform.");
-                    controller_->set_stiffness({{3500, 1000, 500, 300, 100, 300}}, 1.0);
+                    controller_->set_stiffness({{3000, 3000, 250, 300, 300, 300}}, 1.0);
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
