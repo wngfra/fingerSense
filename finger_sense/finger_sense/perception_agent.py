@@ -12,7 +12,7 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.26
+DISTANCE = 0.28
 LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
@@ -77,8 +77,8 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = [1.0*i for i in range(1, 11, 1)]
-        self.speeds = [0.01*j for j in range(10, 0, -1)]
+        self.forces = [5.0 + 1.0*i for i in range(10)]
+        self.speeds = [0.01*j for j in range(1, 11, 1)]
 
         self.trainset = []
 

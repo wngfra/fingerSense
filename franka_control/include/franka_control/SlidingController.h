@@ -23,7 +23,7 @@ namespace franka_control
         SlidingController(const std::shared_ptr<franka::Model>, std::shared_ptr<float> fp);
         // ~SlidingController();
 
-        void set_stiffness(const std::array<double, 6> &, const double);
+        void set_stiffness(const std::array<double, 6> &, const std::array<double, 6> &);
         void set_sliding_parameter(const double, const std::array<double, 3> &, const std::array<double, 3> &);
 
         franka::CartesianVelocities linear_motion_generator(const franka::RobotState &, franka::Duration);
@@ -45,10 +45,10 @@ namespace franka_control
         // Store the float pointer to mean value of sensors
         std::shared_ptr<float> fp_;
 
-        double target_force_, time_, desired_force_, force_error_integral_;
+        double target_force_, time_, desired_force_, force_error_integral_, horizon_error_integral_;
 
         const double FILTER_GAIN{0.1};
-        const double K_P{1e-3};
-        const double K_I = K_P * K_P / 4.0;
+        const double K_P{2.0e-3};
+        const double K_I = 0.2 * K_P * K_P ;
     };
 } // namespace franka_control

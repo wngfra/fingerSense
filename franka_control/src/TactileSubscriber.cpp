@@ -9,7 +9,7 @@ namespace franka_control
     void TactileSubscriber::topic_callback(const tactile_interfaces::msg::TactileSignal::SharedPtr msg)
     {
         auto data_array = msg->data;
-        *fp_ = (float)(data_array.back() - data_array.front());
+        *fp_ = (float)(data_array.front() - data_array.back());
     }
 
 } // namespace franka_control

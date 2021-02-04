@@ -19,5 +19,4 @@
 ## Robot Control
 1. Reach (downwards) along z-axis for a surface with the robot's force-torque sensor, confirmed by a force threshold
 2. Sliding parameter online update controlled by the perception agent
-3. y-axis pushability for manually shifting sliding areas
 4. z-axis force control for sliding

@@ -18,7 +18,7 @@ namespace franka_control
         fp_ = fp;
     }
 
-    void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const double damping_coefficient)
+    void SlidingController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const std::array<double, 6> &damping_coefficient)
     {
         // Compliance parameters
         Eigen::MatrixXd stiffness_matrix(6, 6), damping_matrix(6, 6);
@@ -28,7 +28,7 @@ namespace franka_control
         for (int i = 0; i < 6; ++i)
         {
             stiffness_matrix(i, i) = stiffness_coefficient[i];
-            damping_matrix(i, i) = damping_coefficient * sqrt(stiffness_coefficient[i]);
+            damping_matrix(i, i) = damping_coefficient[i] * sqrt(stiffness_coefficient[i]);
         }
 
         stiffness_ = stiffness_matrix;
@@ -48,7 +48,7 @@ namespace franka_control
                 sgn_[i] = x_max_[i] / std::abs(x_max_[i]);
                 omega_[i] = std::abs(dx_max_[i]) * M_PI / ACCX;
                 accel_time_[i] = M_PI / omega_[i];
-                const_v_time_[i] = std::abs(x_max_[i] / dx_max_[i]);
+                const_v_time_[i] = ((std::abs(x_max_[i]) - 2 * ACCX) / std::abs(dx_max_[i]));
                 time_max_[i] = 2 * accel_time_[i] + const_v_time_[i];
             }
         }
@@ -69,6 +69,7 @@ namespace franka_control
             dx_.fill(0.0);
             desired_force_ = 0.0;
             force_error_integral_ = 0.0;
+            horizon_error_integral_ = 0.0;
         }
 
         for (int i = 0; i < 3; i++)
@@ -115,6 +116,18 @@ namespace franka_control
         Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
         Eigen::Vector3d position(transform.translation());
         Eigen::Quaterniond orientation(transform.linear());
+
+        /*
+        * FIXME Rotation control to align the sensor surface with the platform 
+        * Slow reponse, doesn't work well with the robot torque sensor
+        auto euler = orientation.toRotationMatrix().eulerAngles(0, 1, 2);
+        horizon_error_integral_ += (double)*fp_;
+        euler(1) += K_P * (*fp_) + K_I * horizon_error_integral_;
+        Eigen::Quaternionf quaternion = Eigen::AngleAxisf(euler(0), Eigen::Vector3f::UnitX()) *
+                                        Eigen::AngleAxisf(euler(1), Eigen::Vector3f::UnitY()) *
+                                        Eigen::AngleAxisf(euler(2), Eigen::Vector3f::UnitZ());
+        orientation_d_ = quaternion.cast<double>();
+        */
 
         // compute error to desired equilibrium pose
         // position error
