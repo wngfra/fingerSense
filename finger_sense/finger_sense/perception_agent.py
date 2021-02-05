@@ -14,6 +14,7 @@ from finger_sense.Perceptum import Perceptum
 
 DISTANCE = 0.28
 LATENT_DIM = 3
+MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
@@ -60,8 +61,8 @@ class PerceptionAgent(Node):
             ChangeState, 'tactile_publisher/change_state')
         self.sensor_req = ChangeState.Request()
 
-        self.prev_control_params = np.zeros(2)
-        self.current_control_params = np.zeros(2)
+        self.prev_control_params = np.zeros(4)
+        self.current_control_params = np.zeros(4)
 
         # Create a perceptum class
         self.perceptum = Perceptum(
@@ -106,7 +107,9 @@ class PerceptionAgent(Node):
 
     def tactile_callback(self, msg):
         raw_data = msg.data
-        if raw_data is not None:
+        if raw_data is None:
+            self.get_logger().warn("Tactile data is None.")
+        else:
             self.count += 1
             if self.count < STACK_SIZE:
                 self.tactile_stack[self.count] = raw_data
@@ -114,14 +117,50 @@ class PerceptionAgent(Node):
                 self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
                 self.tactile_stack[-1, :] = raw_data
 
-        # training
-        if self.index[0] < len(self.forces):
-            self.trainset.append(raw_data)
+            if self.mode == 'train':
+                # training mode
+                if self.index[0] < len(self.forces):
+                    self.trainset.append(raw_data)
 
-            if self.index[1] >= len(self.speeds):
-                self.index[0] += 1
-                self.index[1] = 0
+                    if self.index[1] >= len(self.speeds):
+                        self.index[0] += 1
+                        self.index[1] = 0
+                    else:
+                        try:
+                            response = self.sliding_control_future.result()
+                            success = response.success
+                            recovered = response.recovered
+                        except Exception:
+                            success = False
+                            recovered = False
+
+                        if self.index[0] == 0 and self.lap == 0 or success or recovered:
+                            force = self.forces[self.index[0]]
+                            dx = self.speeds[self.index[1]] * self.direction
+                            x = DISTANCE * self.direction
+                            self.send_sliding_control_request(
+                                force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+                            self.lap += 1
+                            self.direction *= -1.0
+
+                            if self.lap > 3:
+                                self.index[1] += 1
+                                self.lap = 0
+
+                                trainset = np.asarray(self.trainset)
+                                filename = self.save_dir + 'BrownPolymer_' + \
+                                    str(force) + '_' + str(dx) + '.csv'
+                                np.savetxt(filename, trainset,
+                                           delimiter=',', fmt='%d')
+                                self.trainset = []
             else:
+                '''FIXME perception mode; update control params
+                    using 3D speed and distance vector
+                    invert sling direction every loop
+                '''
+
+                is_control_updated = False
+
                 try:
                     response = self.sliding_control_future.result()
                     success = response.success
@@ -130,98 +169,45 @@ class PerceptionAgent(Node):
                     success = False
                     recovered = False
 
-                if self.index[0] == 0 and self.lap == 0 or success or recovered:
-                    force = self.forces[self.index[0]]
-                    dx = self.speeds[self.index[1]] * self.direction
-                    x = DISTANCE * self.direction
-                    self.send_sliding_control_request(
-                        force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
-                    self.lap += 1
-                    self.direction *= -1.0
-
-                    if self.lap > 3:
-                        self.index[1] += 1
-                        self.lap = 0
-
-                        trainset = np.asarray(self.trainset)
-                        filename = self.save_dir + 'BrownPolymer_' + \
-                            str(force) + '_' + str(dx) + '.csv'
-                        np.savetxt(filename, trainset, delimiter=',', fmt='%d')
-                        self.trainset = []
-
-        '''
-        is_control_updated = False
-
-        if item is not None:
-            self.count += 1
-
-            if self.count < self.stack_size:
-            else:
-                self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
-                self.tactile_stack[-1] = item
-
-                # Select perception mode
-                if self.mode == 'train':
-                    self.perceptum.perceive(self.tactile_stack, 'train')
-
-                    if self.motion_finished:
-                        force = self.current_control_params[0]
-                        speed = self.current_control_params[1]
-                        if force <= 1.0:
-                            force += 0.1
-                        if speed <= 0.1:
-                            speed += 0.01
-                        else:
-                            speed = -1.0
-                        self.prev_control_params = self.current_control_params
-                        self.current_control_params = np.array([force, speed])
-
-                        is_control_updated = True
-
-                elif self.mode == 'test':
-                    if self.motion_finished:
-                        gradients, weights, delta_latent = self.perceptum.perceive(
-                            self.tactile_stack)
-                        new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(
-                            self.current_control_params - self.   prev_control_params))), axis=0)
-                        self.prev_control_params = self.current_control_params
-                        self.current_control_params = new_control
-
-                        is_control_updated = True
-
-                    if self.count > 960:
-                        speed = -1.0
+                if success or recovered:
+                    gradients, weights, delta_latent = self.perceptum.perceive(
+                        self.tactile_stack)
+                    new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1/(
+                        self.current_control_params - self.prev_control_params))), axis=0)
+                    self.prev_control_params = self.current_control_params
+                    self.current_control_params = new_control
+                    is_control_updated = Tru
+                if self.count > MAX_COUNT:
+                    speed = np.zeros(3)
 
                 if is_control_updated:
-                    distance = 0.25
+                    # FIXME update control params
                     force = self.current_control_params[0]
-                    speed = self.current_control_params[1]
+                    speed = self.current_control_params[1:]
                     try:
-                        self.send_request(distance, force, speed)
+                        self.send_request(force, speed)
                     except Exception as e:
-                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
-
-                    is_control_updated = False
-        '''
+                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, )
+                    is_control_updated=False
 
     def send_sliding_control_request(self, force, distance, speed):
         '''
             Send parameter change request to control parameter server
         '''
-        self.sliding_control_req.force = force
-        self.sliding_control_req.distance = distance
-        self.sliding_control_req.speed = speed
-        self.sliding_control_future = self.sliding_control_cli.call_async(
+        self.sliding_control_req.force=force
+        self.sliding_control_req.distance=distance
+        self.sliding_control_req.speed=speed
+        self.sliding_control_future=self.sliding_control_cli.call_async(
             self.sliding_control_req)
 
     def send_sensor_request(self, transition):
-        self.sensor_req.transition = transition
-        self.sensor_future = self.sensor_cli.call_async(self.sensor_req)
+        self.sensor_req.transition=transition
+        self.sensor_future=self.sensor_cli.call_async(self.sensor_req)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = PerceptionAgent()
+    node=PerceptionAgent()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
