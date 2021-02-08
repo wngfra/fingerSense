@@ -3,6 +3,7 @@
 import numpy as np
 import os.path
 import rclpy
+from collections import deque
 from rclpy.node import Node
 
 from franka_interfaces.msg import RobotState
@@ -39,7 +40,7 @@ class PerceptionAgent(Node):
 
         self.count = 0
         self.robot_state = [np.zeros(6), np.zeros(16)]
-        self.tactile_stack = np.zeros((STACK_SIZE, 16), dtype=np.float32)
+        self.tactile_stack = deque(maxlen=STACK_SIZE)
 
         self.sub_robot = self.create_subscription(
             RobotState,
@@ -111,11 +112,7 @@ class PerceptionAgent(Node):
             self.get_logger().warn("Tactile data is None.")
         else:
             self.count += 1
-            if self.count < STACK_SIZE:
-                self.tactile_stack[self.count] = raw_data
-            else:
-                self.tactile_stack[:-1, :] = self.tactile_stack[1:, :]
-                self.tactile_stack[-1, :] = raw_data
+            self.tactile_stack.append(raw_data)
 
             if self.mode == 'train':
                 # training mode
@@ -187,7 +184,7 @@ class PerceptionAgent(Node):
                     try:
                         self.send_request(force, speed)
                     except Exception as e:
-                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, )
+                        self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
                     is_control_updated=False
 
     def send_sliding_control_request(self, force, distance, speed):

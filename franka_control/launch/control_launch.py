@@ -22,6 +22,9 @@ def generate_launch_description():
     signal_pub_node = Node(
         package='can_wifi',
         executable='tactile_signal_publisher',
+        parameters=[
+            {'mode'      : 'sim'}
+        ],
     )
 
     franka_control_node = Node(
