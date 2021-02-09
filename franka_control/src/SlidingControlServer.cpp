@@ -40,10 +40,10 @@ namespace franka_control
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
-                        update_franka_states(robot_state);
                         return controller_->force_control_callback(robot_state, period);
                     },
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities {
+                        update_franka_states(robot_state);
                         return controller_->linear_motion_generator(robot_state, period);
                     });
             }

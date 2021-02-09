@@ -69,7 +69,7 @@ namespace franka_control
             dx_.fill(0.0);
             desired_force_ = 0.0;
             force_error_integral_ = 0.0;
-            horizon_error_integral_ = 0.0;
+            prev_force_error_ = 0.0;
         }
 
         for (int i = 0; i < 3; i++)
@@ -117,18 +117,6 @@ namespace franka_control
         Eigen::Vector3d position(transform.translation());
         Eigen::Quaterniond orientation(transform.linear());
 
-        /*
-        * FIXME Rotation control to align the sensor surface with the platform 
-        * Slow reponse, doesn't work well with the robot torque sensor
-        auto euler = orientation.toRotationMatrix().eulerAngles(0, 1, 2);
-        horizon_error_integral_ += (double)*fp_;
-        euler(1) += K_P * (*fp_) + K_I * horizon_error_integral_;
-        Eigen::Quaternionf quaternion = Eigen::AngleAxisf(euler(0), Eigen::Vector3f::UnitX()) *
-                                        Eigen::AngleAxisf(euler(1), Eigen::Vector3f::UnitY()) *
-                                        Eigen::AngleAxisf(euler(2), Eigen::Vector3f::UnitZ());
-        orientation_d_ = quaternion.cast<double>();
-        */
-
         // compute error to desired equilibrium pose
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
@@ -138,8 +126,12 @@ namespace franka_control
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         // compute force error using the robot wrench sensors
         double force_error = desired_force_ - (-robot_state.O_F_ext_hat_K[2]);
+        double force_error_derivative = force_error - prev_force_error_;
+        // update prev vars
+        prev_force_error_ = force_error;
+
         force_error_integral_ += period.toSec() * force_error;
-        position_d_[2] -= K_P * force_error + K_I * force_error_integral_;
+        position_d_[2] -= K_P * force_error + K_I * force_error_integral_ + K_D * force_error_derivative;
 
         Eigen::Matrix<double, 6, 1> error;
         error.head(3) << position - position_d_;
