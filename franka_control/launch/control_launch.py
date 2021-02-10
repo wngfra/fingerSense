@@ -12,7 +12,7 @@ def generate_launch_description():
             {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.npy'},
             {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
             {'info_dir'  : './src/fingerSense/finger_sense/finger_sense/info.csv'},
-            {'save_dir'  : './data/'},
+            {'save_dir'  : './src/fingerSense/data/'},
             {'mode'      : 'train'}
         ],
         output='screen',

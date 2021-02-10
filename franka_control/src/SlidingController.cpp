@@ -63,9 +63,11 @@ namespace franka_control
         if (time_ == 0.0)
         {
             initial_state_ = robot_state;
-            initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE.data());
+            initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
+
+            // initialize controller variables
             dx_.fill(0.0);
             desired_force_ = 0.0;
             force_error_integral_ = 0.0;
@@ -163,7 +165,7 @@ namespace franka_control
 
         if (time_ == 0.0)
         {
-            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
+            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
 

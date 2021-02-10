@@ -13,11 +13,13 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.27
+DISTANCE = 0.3
 LATENT_DIM = 3
 MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
+
+MATERIAL_ = 'BrownPolymer_'
 
 
 class PerceptionAgent(Node):
@@ -78,7 +80,7 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = [5.0 + 1.0*i for i in range(10)]
+        self.forces = [9.0]
         self.speeds = [0.01*j for j in range(10, 0, -1)]
 
         self.trainset = []
@@ -144,7 +146,7 @@ class PerceptionAgent(Node):
                                 self.lap = 0
 
                                 trainset = np.asarray(self.trainset)
-                                filename = self.save_dir + 'BlackWool_' + \
+                                filename = self.save_dir + MATERIAL_ + \
                                     str(force) + '_' + str(dx) + '.csv'
                                 np.savetxt(filename, trainset,
                                            delimiter=',', fmt='%d')

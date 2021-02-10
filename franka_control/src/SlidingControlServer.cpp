@@ -22,7 +22,7 @@ namespace franka_control
             {
                 if (!is_touched)
                 {
-                    controller_->set_stiffness({{1000, 1000, 1000, 300, 300, 300}}, damping_coefficient);
+                    controller_->set_stiffness({{1000, 1000, 300, 300, 300, 300}}, damping_coefficient);
                     robot_->control(    
                         [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                             update_franka_states(robot_state);
@@ -32,8 +32,6 @@ namespace franka_control
                     is_touched = true;
                     RCLCPP_INFO(this->get_logger(), "Touched the platform.");
 
-                    damping_coefficient[2] = 2.0;
-                    damping_coefficient[4] = 1.5;
                     controller_->set_stiffness({{3000, 3000, 500, 300, 100, 300}}, damping_coefficient);
                 }
 
