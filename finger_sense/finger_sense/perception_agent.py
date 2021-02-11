@@ -19,7 +19,7 @@ MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = 'BrownPolymer_'
+MATERIAL_ = 'BlackCotton_'
 
 
 class PerceptionAgent(Node):
@@ -80,7 +80,7 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = [9.0]
+        self.forces = [14.0]
         self.speeds = [0.01*j for j in range(10, 0, -1)]
 
         self.trainset = []

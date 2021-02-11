@@ -9,15 +9,14 @@ def main():
     import sys
 
     try:
-        force = abs(float(sys.argv[1]))
-        speed = -abs(float(sys.argv[2]))
-        filename = f'../BrownPolymer_{force}_{speed}.csv'
+        filename = str(sys.argv[1])
         df = pd.read_csv(filename)
     except:
         print(f"Cannot find the data file {filename}!")
         return
 
     plt.plot(df.values)
+    plt.title(filename)
     plt.show()
 
 
