@@ -49,7 +49,7 @@ namespace franka_control
         double force_error_integral_, prev_force_error_;
 
         const double FILTER_GAIN{0.1};
-        const double K_P{1.1e-3};
+        const double K_P{1.2e-3};
         const double K_I = 0.01 * K_P * K_P;
         const double K_D = 0.5 * K_P;
     };

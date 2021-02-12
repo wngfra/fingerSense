@@ -1,5 +1,6 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
+import itertools
 import numpy as np
 import os.path
 import rclpy
@@ -19,7 +20,8 @@ MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = 'BlackCotton_'
+MATERIAL_ = 'BlackPolymer_'
+FORCES = [(i + 11.0, -1.0) for i in range(8)]
 
 
 class PerceptionAgent(Node):
@@ -80,7 +82,7 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = [14.0]
+        self.forces = list(itertools.chain(*FORCES))
         self.speeds = [0.01*j for j in range(10, 0, -1)]
 
         self.trainset = []
@@ -138,10 +140,14 @@ class PerceptionAgent(Node):
                             x = DISTANCE * self.direction
                             self.send_sliding_control_request(
                                 force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
-                            self.lap += 1
-                            self.direction *= -1.0
 
-                            if self.lap > 3:
+                            if force > 0.0:
+                                self.lap += 1
+                                self.direction *= -1.0
+                            else:
+                                self.index[1] = len(self.speeds) + 1
+
+                            if self.lap > 3 and force > 0.0:
                                 self.index[1] += 1
                                 self.lap = 0
 
@@ -186,26 +192,26 @@ class PerceptionAgent(Node):
                         self.send_request(force, speed)
                     except Exception as e:
                         self.get_logger().warn('Change sliding parameter service call failed %r' % (e, ))
-                    is_control_updated=False
+                    is_control_updated = False
 
     def send_sliding_control_request(self, force, distance, speed):
         '''
             Send parameter change request to control parameter server
         '''
-        self.sliding_control_req.force=force
-        self.sliding_control_req.distance=distance
-        self.sliding_control_req.speed=speed
-        self.sliding_control_future=self.sliding_control_cli.call_async(
+        self.sliding_control_req.force = force
+        self.sliding_control_req.distance = distance
+        self.sliding_control_req.speed = speed
+        self.sliding_control_future = self.sliding_control_cli.call_async(
             self.sliding_control_req)
 
     def send_sensor_request(self, transition):
-        self.sensor_req.transition=transition
-        self.sensor_future=self.sensor_cli.call_async(self.sensor_req)
+        self.sensor_req.transition = transition
+        self.sensor_future = self.sensor_cli.call_async(self.sensor_req)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node=PerceptionAgent()
+    node = PerceptionAgent()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
