@@ -1,6 +1,7 @@
 import os
 import re
 import numpy as np
+from numpy.lib.arraysetops import unique
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -9,13 +10,17 @@ from skfda.representation import basis
 from tensorly.decomposition import tucker
 from mpl_toolkits.mplot3d import Axes3D
 
-N_BASIS = 33
+N_BASIS = 65
 OFFSET = 0
 
-''' Pre-processing data and save to files
-'''
+
+def get_cmap(n, name='seismic'):
+    return plt.cm.get_cmap(name, n)
+
 
 def main():
+    ''' Pre-processing data and save to files
+    '''
     # find all csv files
     dirs = os.listdir('data/')
     files = list(filter(lambda x: '.csv' in x, dirs))
@@ -43,7 +48,7 @@ def main():
         data = pd.read_csv(
             f"./data/{f}", usecols=[i for i in range(16) if i != 8], header=None)
         data /= float(pressure)
-        data = data.iloc[153:, :].values
+        data = data.values
 
         # transform to functional representation
         data_transposed = data.transpose()
@@ -53,15 +58,28 @@ def main():
         cov_tensor[:, :, i] = (cov + 1.0) * 0.5
 
     core, factors = tucker(cov_tensor, rank=(3, 1, cov_tensor.shape[2]))
-    core3d = core.squeeze()
+    core3d = core.squeeze().T
 
     # save tags into DataFrame
-    df = pd.DataFrame(tags, columns =['material', 'pressure', 'speed'], dtype=float)
+    df1 = pd.DataFrame(
+        tags, columns=['material', 'pressure', 'speed'], dtype=float)
+    df2 = pd.DataFrame(core3d, columns=['x1', 'x2', 'x3'], dtype=float)
+    df = pd.concat([df1, df2], axis=1)
+
+    # generate random color map
+    ums = pd.unique(df['material'])
+    cmap = get_cmap(len(ums))
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(core3d[0, :], core3d[1, :], core3d[2, :], s=40, c='r')
+    for i, m in enumerate(ums):
+        ind = df['material'] == m
+        x1, x2, x3 = df[ind]['x1'], df[ind]['x2'], df[ind]['x3']
+        ax.scatter(x1, x2, x3, s=25, c=np.tile(cmap(i), (len(x1), 1)))
     plt.show()
+
+    # df.to_csv('./data/scripts/core.csv')
+    # np.save('factors.npy', factors, allow_pickle=True)
 
 
 if __name__ == '__main__':

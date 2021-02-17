@@ -19,6 +19,7 @@ RUN rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
     argcomplete \
+    numpy \
     pandas \
     pyqt5 \
     pyside2 \

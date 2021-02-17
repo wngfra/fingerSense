@@ -180,7 +180,7 @@ class PerceptionAgent(Node):
                         self.current_control_params - self.prev_control_params))), axis=0)
                     self.prev_control_params = self.current_control_params
                     self.current_control_params = new_control
-                    is_control_updated = Tru
+                    is_control_updated = True
                 if self.count > MAX_COUNT:
                     speed = np.zeros(3)
 
