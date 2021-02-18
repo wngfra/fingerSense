@@ -10,7 +10,9 @@ from skfda.representation import basis
 from tensorly.decomposition import tucker
 from mpl_toolkits.mplot3d import Axes3D
 
-N_BASIS = 33
+DEBUG = True
+
+N_BASIS = 65
 OFFSET = 1
 ROOT_PATH = './preprocess/'
 DATA_PATH = ROOT_PATH + 'data/'
@@ -34,7 +36,8 @@ def main():
     # prepare covariance tensor
     cov_tensor = np.zeros((N_BASIS - OFFSET, N_BASIS - OFFSET, len(files)))
 
-    # prepare info list
+    # prepare data list
+    coeff_list = []
     tags = []
 
     for i, f in enumerate(files):
@@ -51,20 +54,17 @@ def main():
         # NOTE channel 9 malfunctions
         usecols = [i for i in range(16) if i != 8]
         data = pd.read_csv(f'{DATA_PATH}{f}', usecols=usecols, header=None)
-        # data /= float(pressure)
-        data = data.values
 
         # transform to functional representation
-        data_transposed = data.transpose()
-        fd = FDataGrid(data_transposed).to_basis(fd_basis)
-        coeffs = fd.coefficients.astype(np.float32).squeeze()
-        cov_tensor[:, :, i] = np.corrcoef(coeffs.T[OFFSET:, :])
+        fd = FDataGrid(data.T).to_basis(fd_basis)
+        coeffs = fd.coefficients.squeeze()
+        coeffs = coeffs.T[OFFSET:, :]
 
-        if i % 30 == 0:
-            fig, ax = plt.subplots(figsize=(16, 16))
-            ax.imshow(cov_tensor[:, :, i])
-            ax.set_title(material)
-            plt.show()
+        coeff_list.append(coeffs)
+
+        # append the coefficient and covariance matrices
+        coeff_list.append(coeffs)
+        cov_tensor[:, :, i] = np.corrcoef(coeffs)
 
     core, factors = tucker(cov_tensor, rank=(3, 1, cov_tensor.shape[2]))
     core3d = core.squeeze().T
@@ -79,14 +79,27 @@ def main():
     ums = pd.unique(df['material'])
     cmap = get_cmap(len(ums))
 
-    # plot core vectors
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    for i, m in enumerate(ums):
-        ind = df['material'] == m
-        x1, x2, x3 = df[ind]['x1'], df[ind]['x2'], df[ind]['x3']
-        ax.scatter(x1, x2, x3, s=25, c=np.tile(cmap(i), (len(x1), 1)))
-    plt.show()
+    # debug plotting
+    if DEBUG:
+        # prepare figures     
+        fig2 = plt.figure()
+        ax = fig2.add_subplot(111, projection='3d')
+
+        for i, m in enumerate(ums):
+            # plot coefficients and covariance matrix
+            ind = df.loc[(df['material'] == m) & (df['pressure'] == 8.0)].index
+            fig1, axes = plt.subplots(2, 10, figsize=(32, 16))
+            fig1.suptitle(m, fontsize=20)
+            for i in range(10):
+                axes[0][i].plot(coeff_list[ind[i]])
+                axes[1][i].imshow(cov_tensor[:, :, ind[i]])
+
+            # plot core vectors
+            # X = df.loc[df['material'] == m][['x1', 'x2', 'x3']]
+            # xs, ys, zs = X.iloc[:, 0], X.iloc[:, 1], X.iloc[:, 2]
+            # ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
+            
+            plt.show()
 
     # df.to_csv(f'{ROOT_PATH}core.csv')
     # np.save(f'{ROOT_PATH}factors.npy', factors, allow_pickle=True)
