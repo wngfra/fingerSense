@@ -14,14 +14,14 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.3
+DISTANCE = 0.2
 LATENT_DIM = 3
 MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = 'BlackPolymer_'
-FORCES = [(i + 11.0, -1.0) for i in range(8)]
+MATERIAL_ = 'PLA5_'
+FORCES = [(i + 15.0, -1.0) for i in range(5)]
 
 
 class PerceptionAgent(Node):
@@ -82,7 +82,7 @@ class PerceptionAgent(Node):
         self.index = [0, 0]
 
         self.forces = list(itertools.chain(*FORCES))
-        self.speeds = [0.01*j for j in range(10, 0, -1)]
+        self.speeds = [0.01*j for j in range(5, 0, -1)]
 
         self.trainset = []
 
