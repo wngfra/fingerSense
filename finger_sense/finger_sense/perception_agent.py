@@ -34,7 +34,6 @@ class PerceptionAgent(Node):
             parameters=[
                 ('core_dir',   None),
                 ('factor_dir', None),
-                ('info_dir',   None),
                 ('save_dir',   None),
                 ('mode',       None)
             ]
@@ -93,12 +92,10 @@ class PerceptionAgent(Node):
 
         core_dir = str(self.get_parameter('core_dir').value)
         factor_dir = str(self.get_parameter('factor_dir').value)
-        info_dir = str(self.get_parameter('info_dir').value)
 
         self.dirs = {
             'core_dir':   core_dir,
-            'factor_dir': factor_dir,
-            'info_dir':   info_dir
+            'factor_dir': factor_dir
         }
 
         # If file not exists, set dir to None

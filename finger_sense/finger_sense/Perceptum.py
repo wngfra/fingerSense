@@ -32,20 +32,18 @@ class Perceptum:
             Parameters
             ----------
             dirs : list of strings
-                Directories of core, factors, info files
+                Directories of core, factors
         '''
         if None in dirs.values():
             self.core = None
             self.factors = None
-            self.info = None
             self.features = None
         else:
-            self.core = np.load(dirs['core_dir'], allow_pickle=True).squeeze()
+            self.core = pd.read_csv(dirs['core_dir'])
             self.factors = np.load(dirs['factor_dir'], allow_pickle=True)[0:2]
-            info = pd.read_csv(dirs['info_dir'], delimiter=',')
 
             self.features = {}
-            class_names = info['class_name']
+            class_names = pd.unique(self.core['material'])
 
             '''
                 Fit a Gaussian distribution for each unique class

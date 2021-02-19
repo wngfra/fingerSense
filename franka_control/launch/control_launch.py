@@ -9,10 +9,9 @@ def generate_launch_description():
         package='finger_sense',
         executable='perception_agent',
         parameters=[
-            {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.npy'},
+            {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.csv'},
             {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
-            {'info_dir'  : './src/fingerSense/finger_sense/finger_sense/info.csv'},
-            {'save_dir'  : './src/fingerSense/data/'},
+            {'save_dir'  : './src/fingerSense/preprocess/data/'},
             {'mode'      : 'perception'}
         ],
         output='screen',
