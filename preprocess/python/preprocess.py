@@ -57,25 +57,17 @@ def main():
         # NOTE channel 9 malfunctions
         usecols = [i for i in range(16) if i != 8]
         data = pd.read_csv(f'{DATA_PATH}{f}', usecols=usecols, header=None)
-        f, t, Zxx = stft(data.T, Fs, nperseg=32)
-        plt.pcolormesh(t, f, np.abs(Zxx[7, :, :]), shading='gouraud')
-        plt.title('STFT Magnitude')
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        plt.show()
 
-        """ transform to functional representation           
+        # transform to functional representation
         fd = FDataGrid(data.T).to_basis(fd_basis)
         coeffs = fd.coefficients.squeeze()
         coeffs = coeffs.T[OFFSET:, :]
-        coeff_list.append(coeffs)
 
         # append the coefficient and covariance matrices
         coeff_list.append(coeffs)
         cov_tensor[:, :, i] = np.corrcoef(coeffs)
-        """
 
-    """ tucker decomposition
+    # tucker decomposition
     core, factors = tucker(cov_tensor, rank=(1, 3, cov_tensor.shape[2]))
     core3d = core.squeeze().T
 
@@ -84,7 +76,6 @@ def main():
         tags, columns=['material', 'pressure', 'speed'], dtype=float)
     df2 = pd.DataFrame(core3d, columns=['x1', 'x2', 'x3'], dtype=float)
     df = pd.concat([df1, df2], axis=1)
-    """
 
     # generate random color map
     ums = pd.unique(df['material'])
@@ -102,21 +93,20 @@ def main():
 
         if DEBUG:
             # plot coefficients and covariance matrix
-            ind = df.loc[(df['material'] == m) & (df['pressure'] == 8.0)].index
-            fig1, axes = plt.subplots(2, 10, figsize=(32, 16))
-            fig1.suptitle(m, fontsize=20)
-            for i in range(10):
-                axes[0][i].plot(coeff_list[ind[i]])
-                axes[1][i].imshow(cov_tensor[:, :, ind[i]])
-            plt.show()
+            # ind = df.loc[(df['material'] == m) & (df['pressure'] == 15.0)].index
+            # fig1, axes = plt.subplots(2, 5, figsize=(32, 16))
+            # fig1.suptitle(m, fontsize=20)
+            # for i in range(5):
+            #     axes[0][i].plot(coeff_list[ind[i]])
+            #     axes[1][i].imshow(cov_tensor[:, :, ind[i]])
 
             # plot core vectors
             if m != 'BeigeCotton':
+
                 X = df.loc[df['material'] == m]
                 xs, ys, zs = X['x1'], X['x2'], X['x3']
                 ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
-
-    plt.show()
+                plt.pause(1)
 
     if SAVE_RESULT:
         df.to_csv(f'{ROOT_PATH}core.csv')
