@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.signal import stft
 from skfda import FDataGrid
 from skfda.representation import basis
 from tensorly.decomposition import tucker
@@ -15,7 +14,7 @@ DEBUG = True
 SAVE_RESULT = False
 
 Fs = 32
-N_BASIS = 129
+N_BASIS = 32
 OFFSET = 1
 ROOT_PATH = './preprocess/'
 DATA_PATH = ROOT_PATH + 'data/'
@@ -57,25 +56,22 @@ def main():
         # NOTE channel 9 malfunctions
         usecols = [i for i in range(16) if i != 8]
         data = pd.read_csv(f'{DATA_PATH}{f}', usecols=usecols, header=None)
-        f, t, Zxx = stft(data.T, Fs, nperseg=32)
-        plt.pcolormesh(t, f, np.abs(Zxx[7, :, :]), shading='gouraud')
-        plt.title('STFT Magnitude')
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        plt.show()
 
-        """ transform to functional representation           
+        """ transform to functional representation """
         fd = FDataGrid(data.T).to_basis(fd_basis)
         coeffs = fd.coefficients.squeeze()
         coeffs = coeffs.T[OFFSET:, :]
         coeff_list.append(coeffs)
 
+        plt.plot(coeffs)
+        plt.show()
+
         # append the coefficient and covariance matrices
         coeff_list.append(coeffs)
         cov_tensor[:, :, i] = np.corrcoef(coeffs)
-        """
+        
 
-    """ tucker decomposition
+    """ tucker decomposition """
     core, factors = tucker(cov_tensor, rank=(1, 3, cov_tensor.shape[2]))
     core3d = core.squeeze().T
 
@@ -84,7 +80,7 @@ def main():
         tags, columns=['material', 'pressure', 'speed'], dtype=float)
     df2 = pd.DataFrame(core3d, columns=['x1', 'x2', 'x3'], dtype=float)
     df = pd.concat([df1, df2], axis=1)
-    """
+    
 
     # generate random color map
     ums = pd.unique(df['material'])
