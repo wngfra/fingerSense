@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
+from pandas.core.indexes import base
 from skfda import FDataGrid
 from skfda.representation import basis
 from tensorly.decomposition import tucker
@@ -14,10 +15,10 @@ DEBUG = True
 SAVE_RESULT = False
 
 Fs = 32
-N_BASIS = 32
+N_BASIS = 33
 OFFSET = 1
 ROOT_PATH = './preprocess/'
-DATA_PATH = ROOT_PATH + 'data/'
+DATA_PATH = ROOT_PATH + 'data/fabrics/'
 
 
 def get_cmap(n, name='seismic'):
@@ -61,10 +62,6 @@ def main():
         fd = FDataGrid(data.T).to_basis(fd_basis)
         coeffs = fd.coefficients.squeeze()
         coeffs = coeffs.T[OFFSET:, :]
-        coeff_list.append(coeffs)
-
-        plt.plot(coeffs)
-        plt.show()
 
         # append the coefficient and covariance matrices
         coeff_list.append(coeffs)
@@ -98,20 +95,19 @@ def main():
 
         if DEBUG:
             # plot coefficients and covariance matrix
-            ind = df.loc[(df['material'] == m) & (df['pressure'] == 8.0)].index
-            fig1, axes = plt.subplots(2, 10, figsize=(32, 16))
+            X = df.loc[df['material'] == m]
+            ind = X[X['pressure'] == 10.0].index
+
+            fig1, axes = plt.subplots(2, len(ind), figsize=(32, 16))
             fig1.suptitle(m, fontsize=20)
-            for i in range(10):
+            for i in range(len(ind)):
                 axes[0][i].plot(coeff_list[ind[i]])
                 axes[1][i].imshow(cov_tensor[:, :, ind[i]])
-            plt.show()
 
             # plot core vectors
-            if m != 'BeigeCotton':
-                X = df.loc[df['material'] == m]
-                xs, ys, zs = X['x1'], X['x2'], X['x3']
-                ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
-
+            xs, ys, zs = X['x1'], X['x2'], X['x3']
+            ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
+    
     plt.show()
 
     if SAVE_RESULT:

@@ -14,13 +14,13 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.2
+DISTANCE = 0.17
 LATENT_DIM = 3
 MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = 'PLA5_'
+MATERIAL_ = 'PLA1_'
 FORCES = [(i + 15.0, -1.0) for i in range(5)]
 
 
