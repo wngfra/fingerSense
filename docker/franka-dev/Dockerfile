@@ -24,6 +24,7 @@ RUN pip3 install -U\
     pyqt5 \
     pyside2 \
     scikit-fda \
+    scikit-learn \
     scipy \
     tensorly
 RUN pip3 install --upgrade jax jaxlib==0.1.61+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html

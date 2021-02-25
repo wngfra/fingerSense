@@ -5,13 +5,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
-from skfda import FDataGrid
-from skfda.representation import basis
+from numpy.fft import fft
+# from skfda import FDataGrid
+# from skfda.representation import basis
 from tensorly.decomposition import tucker
 
 
 DEBUG = True
-SAVE_RESULT = False
+SAVE_RESULT = True
 
 Fs = 32
 N_BASIS = 17
@@ -19,8 +20,11 @@ OFFSET = 1
 ROOT_PATH = './preprocess/'
 DATA_PATH = ROOT_PATH + 'data/fabrics/'
 
+# NOTE channel 9 malfunctions
+usecols = [i for i in range(16) if i != 8]
 
-def get_cmap(n, name='seismic'):
+
+def get_cmap(n, name='plasma'):
     return plt.cm.get_cmap(name, n)
 
 
@@ -33,10 +37,10 @@ def main():
     files = list(filter(lambda x: 'csv' in x, dirs))
 
     # construct Fourier basis
-    fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
+    # fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
 
-    # prepare covariance list
-    cov_list = []
+    # prepare covariance tensor
+    cov_tensor = np.zeros((Fs * len(usecols), Fs * len(usecols), len(files)))
 
     # prepare data list
     tags = []
@@ -52,23 +56,28 @@ def main():
         tags.append((material, pressure, speed))
 
         # load data
-        # NOTE channel 9 malfunctions
-        usecols = [i for i in range(16) if i != 8]
         data = pd.read_csv(f'{DATA_PATH}{f}', usecols=usecols, header=None)
 
         # splits data into equal-sized segments
-        splits = np.array_split(data, np.floor(len(data) / Fs / 2), axis=0)
-        cov_tensor = np.zeros((N_BASIS - OFFSET, N_BASIS - OFFSET, len(splits)))
+        L = len(data)
+        N = L // (Fs * 2)
+        data = data.iloc[L - N * (Fs * 2):, :]
+        splits = np.array_split(data, N, axis=0)
+        sample = np.zeros((Fs * len(usecols), len(splits)))
 
         # transforms to covariance of fourier coefficients
-        for i, sd in enumerate(splits):
-            fd = FDataGrid(sd.T).to_basis(fd_basis)
-            coeffs = fd.coefficients.squeeze()
-            cov = np.corrcoef(coeffs.T[OFFSET:, :])
-            cov_tensor[:, :, i] = cov
+        for j, sd in enumerate(splits):
+            # fd = FDataGrid(sd.T).to_basis(fd_basis)
+            # coeffs = fd.coefficients.squeeze()
+            Y = fft(sd/len(sd))
+            Ys = np.abs(Y)
+            Ys = Ys[1:len(Ys)//2+1, :]
+            sample[:, j] = Ys.flatten()
+            
+        cov = np.corrcoef(sample)
+        cov_tensor[:, :, i] = cov
 
     """ tucker decomposition
-        TODO tucker decomposition on all datasets
     """
     core, factors = tucker(cov_tensor, rank=(3, 1, cov_tensor.shape[2]))
     core3d = core.squeeze().T
@@ -83,24 +92,19 @@ def main():
     ums = pd.unique(df['material'])
     cmap = get_cmap(len(ums))
 
-    # data analysis
-    x_list = []
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-    fig2 = plt.figure()
-    ax = fig2.add_subplot(111, projection='3d')
+    df = df.loc[np.abs(df['x1']) < 1e-10]
 
     for i, m in enumerate(ums):
-        x = df.loc[df['material'] == m][['x1', 'x2', 'x3']]
-        x_list.append(x.mean())
-
         if DEBUG:
             # plot coefficients and covariance matrix
             X = df.loc[df['material'] == m]
-            ind = X[X['pressure'] == 10.0].index
 
             # plot core vectors
             xs, ys, zs = X['x1'], X['x2'], X['x3']
-            ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
+            ax.scatter(xs, ys, zs, s=30, c=np.tile(cmap(i), (len(xs), 1)))
 
     plt.show()
 
