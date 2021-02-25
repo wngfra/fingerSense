@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
-from pandas.core.indexes import base
 from skfda import FDataGrid
 from skfda.representation import basis
 from tensorly.decomposition import tucker
@@ -15,7 +14,7 @@ DEBUG = True
 SAVE_RESULT = False
 
 Fs = 32
-N_BASIS = 33
+N_BASIS = 17
 OFFSET = 1
 ROOT_PATH = './preprocess/'
 DATA_PATH = ROOT_PATH + 'data/fabrics/'
@@ -31,16 +30,15 @@ def main():
     '''
     # find all csv files
     dirs = os.listdir(DATA_PATH)
-    files = list(filter(lambda x: '.csv' in x, dirs))
+    files = list(filter(lambda x: 'csv' in x, dirs))
 
     # construct Fourier basis
     fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
 
-    # prepare covariance tensor
-    cov_tensor = np.zeros((N_BASIS - OFFSET, N_BASIS - OFFSET, len(files)))
+    # prepare covariance list
+    cov_list = []
 
     # prepare data list
-    coeff_list = []
     tags = []
 
     for i, f in enumerate(files):
@@ -58,18 +56,21 @@ def main():
         usecols = [i for i in range(16) if i != 8]
         data = pd.read_csv(f'{DATA_PATH}{f}', usecols=usecols, header=None)
 
-        """ transform to functional representation """
-        fd = FDataGrid(data.T).to_basis(fd_basis)
-        coeffs = fd.coefficients.squeeze()
-        coeffs = coeffs.T[OFFSET:, :]
+        # splits data into equal-sized segments
+        splits = np.array_split(data, np.floor(len(data) / Fs / 2), axis=0)
+        cov_tensor = np.zeros((N_BASIS - OFFSET, N_BASIS - OFFSET, len(splits)))
 
-        # append the coefficient and covariance matrices
-        coeff_list.append(coeffs)
-        cov_tensor[:, :, i] = np.corrcoef(coeffs)
-        
+        # transforms to covariance of fourier coefficients
+        for i, sd in enumerate(splits):
+            fd = FDataGrid(sd.T).to_basis(fd_basis)
+            coeffs = fd.coefficients.squeeze()
+            cov = np.corrcoef(coeffs.T[OFFSET:, :])
+            cov_tensor[:, :, i] = cov
 
-    """ tucker decomposition """
-    core, factors = tucker(cov_tensor, rank=(1, 3, cov_tensor.shape[2]))
+    """ tucker decomposition
+        TODO tucker decomposition on all datasets
+    """
+    core, factors = tucker(cov_tensor, rank=(3, 1, cov_tensor.shape[2]))
     core3d = core.squeeze().T
 
     # save tags into DataFrame
@@ -77,7 +78,6 @@ def main():
         tags, columns=['material', 'pressure', 'speed'], dtype=float)
     df2 = pd.DataFrame(core3d, columns=['x1', 'x2', 'x3'], dtype=float)
     df = pd.concat([df1, df2], axis=1)
-    
 
     # generate random color map
     ums = pd.unique(df['material'])
@@ -98,16 +98,10 @@ def main():
             X = df.loc[df['material'] == m]
             ind = X[X['pressure'] == 10.0].index
 
-            fig1, axes = plt.subplots(2, len(ind), figsize=(32, 16))
-            fig1.suptitle(m, fontsize=20)
-            for i in range(len(ind)):
-                axes[0][i].plot(coeff_list[ind[i]])
-                axes[1][i].imshow(cov_tensor[:, :, ind[i]])
-
             # plot core vectors
             xs, ys, zs = X['x1'], X['x2'], X['x3']
             ax.scatter(xs, ys, zs, s=25, c=np.tile(cmap(i), (len(xs), 1)))
-    
+
     plt.show()
 
     if SAVE_RESULT:
