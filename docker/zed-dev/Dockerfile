@@ -68,19 +68,15 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
     && make \
     && make install
 
-RUN echo 'source "/opt/ros/$ROS_DISTRO/setup.bash"' >> /root/.bashrc \
-    && source /root/.bashrc
-
 WORKDIR /root/ros2_ws/src/
 RUN git clone https://github.com/stereolabs/zed-ros2-wrapper.git \
+    && cd zed-ros2-wrapper \
     && git pull origin dev_foxy \
-    && git checkout dev_foxy \
-    && cd .. \
-    && rosdep install --from-paths src --ignore-src -r -y \
-    && colcon build --symlink-install --cmake-args=-DCMAKE_BUILD_TYPE=Release \
-    && echo source $(pwd)/install/local_setup.bash >> /root/.bashrc \
-    && source /root/.bashrc
+    && git checkout dev_foxy
 
 WORKDIR /root/ros2_ws/
+RUN rosdep install --from-paths src --ignore-src -r -y \
+    && echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc \
+    && echo "source $(pwd)/install/local_setup.bash" >> /root/.bashrc
 
 CMD ["bash"]
