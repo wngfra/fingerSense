@@ -14,14 +14,16 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.17
+DISTANCE = 0.1
 LATENT_DIM = 3
 MAX_COUNT = 1000
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = 'PLA1_'
-FORCES = [(i + 15.0, -1.0) for i in range(5)]
+MATERIAL_ = 'PLAVertical_'
+FORCES = [0.0, 0.0] #[(i + 20.0, -1.0) for i in range(10)]
+# FORCES = list(itertools.chain(*FORCES))
+SPEEDS = [0.01*j + 0.001 for j in range(5, 0, -1)]
 
 
 class PerceptionAgent(Node):
@@ -81,9 +83,6 @@ class PerceptionAgent(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.forces = list(itertools.chain(*FORCES))
-        self.speeds = [0.01*j for j in range(5, 0, -1)]
-
         self.trainset = []
 
     def get_params(self):
@@ -109,17 +108,17 @@ class PerceptionAgent(Node):
     def tactile_callback(self, msg):
         raw_data = msg.data
         if raw_data is None:
-            self.get_logger().warn("Tactile data is None.")
+            self.get_logger().warn("Tactile data is None-Type.")
         else:
             self.count += 1
             self.tactile_stack.append(raw_data)
 
             if self.mode == 'train':
                 # training mode
-                if self.index[0] < len(self.forces):
+                if self.index[0] < len(FORCES):
                     self.trainset.append(raw_data)
 
-                    if self.index[1] >= len(self.speeds):
+                    if self.index[1] >= len(SPEEDS):
                         self.index[0] += 1
                         self.index[1] = 0
                     else:
@@ -132,28 +131,28 @@ class PerceptionAgent(Node):
                             recovered = False
 
                         if self.index[0] == 0 and self.lap == 0 or success or recovered:
-                            force = self.forces[self.index[0]]
-                            dx = self.speeds[self.index[1]] * self.direction
+                            force = FORCES[self.index[0]]
+                            dx = SPEEDS[self.index[1]] * self.direction
                             x = DISTANCE * self.direction
+
+                            t = self.get_clock().now().nanoseconds
+                            self.get_logger().info('current time: {}'.format(t))
                             self.send_sliding_control_request(
-                                force, [x, 0.0, 0.0], [dx, 0.0, 0.0])
+                                force, [2 * x, x, 0.0], [2.0 * dx, dx, 0.0])
 
-                            if force > 0.0:
+                            self.direction *= -1.0
+                            if force >= 0.0:
                                 self.lap += 1
-                                self.direction *= -1.0
+                                if self.lap > 3:
+                                    self.index[1] += 1
+                                    self.lap = 0
                             else:
-                                self.index[1] = len(self.speeds) + 1
+                                self.index[1] = len(SPEEDS) + 1               
 
-                            if self.lap > 3 and force > 0.0:
-                                self.index[1] += 1
-                                self.lap = 0
-
-                                trainset = np.asarray(self.trainset)
-                                filename = self.save_dir + MATERIAL_ + \
-                                    str(force) + '_' + str(dx) + '.csv'
-                                np.savetxt(filename, trainset,
-                                           delimiter=',', fmt='%d')
-                                self.trainset = []
+                                # trainset = np.asarray(self.trainset)
+                                # filename = self.save_dir + MATERIAL_ + ('%.2f' % force) + '_' + ('%.4f' % dx) + '.csv'
+                                # np.savetxt(filename, trainset, delimiter=',', fmt='%d')
+                                # self.trainset = []
             else:
                 '''FIXME perception mode; update control params
                     using 3D speed and distance vector

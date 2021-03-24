@@ -39,21 +39,21 @@ add_library(common STATIC
   src/common.cpp
 )
 
-add_library(sliding_controller STATIC
-  src/SlidingController.cpp
+add_library(motion_controller STATIC
+  src/MotionController.cpp
 )
 
 target_link_libraries(common PUBLIC Eigen3::Eigen3 Franka::Franka)
 
-target_link_libraries(sliding_controller PUBLIC Eigen3::Eigen3 Franka::Franka)
+target_link_libraries(motion_controller PUBLIC Eigen3::Eigen3 Franka::Franka)
 
 # add ROS2 libraries 
 add_library(franka_state_publisher STATIC
   src/FrankaStatePublisher.cpp
 )
 
-add_library(sliding_control_server STATIC
-  src/SlidingControlServer.cpp
+add_library(motion_control_server STATIC
+  src/MotionControlServer.cpp
 )
 
 add_library(tactile_subscriber STATIC
@@ -65,7 +65,7 @@ ament_target_dependencies(franka_state_publisher
   "rclcpp"
 )
 
-ament_target_dependencies(sliding_control_server
+ament_target_dependencies(motion_control_server
   "franka_interfaces"
   "rclcpp"
 )
@@ -85,8 +85,8 @@ foreach(target ${APPS})
   target_link_libraries(${target}
     common
     franka_state_publisher
-    sliding_controller
-    sliding_control_server
+    motion_controller
+    motion_control_server
     tactile_subscriber
     # Threads::Threads
     Franka::Franka)

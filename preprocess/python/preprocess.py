@@ -69,12 +69,12 @@ def main():
         for j, sd in enumerate(splits):
             # fd = FDataGrid(sd.T).to_basis(fd_basis)
             # coeffs = fd.coefficients.squeeze()
-            Y = fft(sd/len(sd))
-            Ys = np.abs(Y)
+            Y = fft(sd, axis=0)
+            Ys = np.abs(Y/len(sd))
             Ys = Ys[1:len(Ys)//2+1, :]
             sample[:, j] = Ys.flatten()
             
-        cov = np.corrcoef(sample)
+        cov = np.cov(sample)
         cov_tensor[:, :, i] = cov
 
     """ tucker decomposition
@@ -89,7 +89,7 @@ def main():
     df = pd.concat([df1, df2], axis=1)
 
     # generate random color map
-    ums = pd.unique(df['material'])
+    ums = pd.unique(df['pressure'])
     cmap = get_cmap(len(ums))
 
     fig = plt.figure()
@@ -100,7 +100,7 @@ def main():
     for i, m in enumerate(ums):
         if DEBUG:
             # plot coefficients and covariance matrix
-            X = df.loc[df['material'] == m]
+            X = df.loc[df['pressure'] == m]
 
             # plot core vectors
             xs, ys, zs = X['x1'], X['x2'], X['x3']

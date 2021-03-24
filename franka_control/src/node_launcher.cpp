@@ -9,7 +9,7 @@
 
 #include "franka_control/common.h"
 #include "franka_control/FrankaStatePublisher.h"
-#include "franka_control/SlidingControlServer.h"
+#include "franka_control/MotionControlServer.h"
 #include "franka_control/TactileSubscriber.h"
 
 using namespace std::chrono_literals;
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     auto fp = std::make_shared<float>(0.0);
 
     auto publisher_handler = std::make_shared<franka_control::FrankaStatePublisher>(franka_states);
-    auto control_server_handler = std::make_shared<franka_control::SlidingControlServer>(robot, franka_states, fp);
+    auto control_server_handler = std::make_shared<franka_control::MotionControlServer>(robot, franka_states, fp);
     auto tactile_subscriber = std::make_shared<franka_control::TactileSubscriber>(fp);
     
     rclcpp::executors::MultiThreadedExecutor executor;
