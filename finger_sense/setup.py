@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'perception_agent = finger_sense.perception_agent:main'
+            'perception_agent = finger_sense.perception_agent:main',
+            'visualizer = finger_sense.visualizer:main'
         ],
     },
 )
