@@ -22,7 +22,7 @@ def generate_launch_description():
         package='can_wifi',
         executable='tactile_signal_publisher',
         parameters=[
-            {'mode' : 'sensor'}
+            {'mode' : 'processed'}
         ],
     )
 
