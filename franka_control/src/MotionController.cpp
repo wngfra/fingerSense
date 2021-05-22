@@ -18,6 +18,13 @@ namespace franka_control
         fp_ = fp;
     }
 
+    void MotionController::set_initial_orientation(const franka::RobotState &robot_state)
+    {
+        initial_state_ = robot_state;
+        initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_c.data());
+        orientation_d_ = initial_transform_.linear();
+    }
+
     void MotionController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const std::array<double, 6> &damping_coefficient)
     {
         // Compliance parameters
@@ -66,7 +73,6 @@ namespace franka_control
             initial_state_ = robot_state;
             initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
-            orientation_d_ = initial_transform_.linear();
 
             // initialize controller variables
             dx_.fill(0.0);
