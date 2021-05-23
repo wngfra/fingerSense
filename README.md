@@ -5,7 +5,7 @@
 ## Overview
 1. [libfranka](https://frankaemika.github.io/docs/libfranka.html) is needed
 2. `franka_control` contains Franka Emika Panda control interface
-3. [can2wifi2ros]((https://github.com/wngfra/can2wifi2ros)) contains the ROS2 package for a DIY `CAN2WIFI` module
+3. [can2wifi2ros](https://github.com/wngfra/can2wifi2ros) contains the ROS2 package for a DIY `CAN2WIFI` module
 4. Using a [CPM-Finger](https://www.cyskin.com/cpm-finger-the-finger-for-textile-manipulation/) tactile sensor
 5. Non-realtime config will be applied to `robot` when `PREEMPT_RT` not detected
 6. Default `UDP` socket ip of `tactile_signal_publisher` is binded to `0.0.0.0` for use in containers
