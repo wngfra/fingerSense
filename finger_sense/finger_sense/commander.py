@@ -19,8 +19,8 @@ LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = "BeigeTexturedCotton"
-FORCES = [(i * 1 + 5.0, -1.0) for i in range(5)]
+MATERIAL_ = "BlackWool"
+FORCES = [(i * 0.5 + 2.0, -1.0) for i in range(5)]
 FORCES = list(itertools.chain(*FORCES))
 SPEEDS = [0.001 * j + 0.01 for j in range(10)]
 

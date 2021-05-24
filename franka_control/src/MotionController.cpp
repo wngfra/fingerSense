@@ -122,7 +122,7 @@ namespace franka_control
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         // compute force error using the robot wrench sensors
-        double force_error = desired_force_ - (-robot_state.O_F_ext_hat_K[2]);
+        double force_error = desired_force_ + robot_state.O_F_ext_hat_K[2];
         double force_error_derivative = force_error - prev_force_error_;
         // update prev vars
         prev_force_error_ = force_error;

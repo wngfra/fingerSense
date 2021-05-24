@@ -5,9 +5,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
-    peception_agent_node = Node(
+    commander_node = Node(
         package='finger_sense',
-        executable='perception_agent',
+        executable='commander',
         parameters=[
             {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.csv'},
             {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
@@ -32,7 +32,7 @@ def generate_launch_description():
         arguments=['172.16.0.2']
     )
 
-    ld.add_action(peception_agent_node)
+    ld.add_action(commander_node)
     ld.add_action(franka_control_node)
     ld.add_action(signal_pub_node)
 

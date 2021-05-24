@@ -20,8 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'commander = finger_sense.commander:main',
-            'visualizer = finger_sense.visualizer:main'
+            'commander = finger_sense.commander:main'
         ],
     },
 )
