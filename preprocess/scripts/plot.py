@@ -1,4 +1,4 @@
-#! /bin/env python3
+#! /usr/bin/env python3
 
 import os
 import sys
@@ -24,7 +24,7 @@ def main():
         print("File does not exist!")
         exit(1)
 
-    df = df.iloc[:, 3:]
+    df = df.iloc[:200, 3:]
 
     # Compute the frequency spectrum
     L = len(df)

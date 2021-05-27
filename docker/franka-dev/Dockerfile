@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-matplotlib \
     python3-pip \
     python3-tk \
+    qtbase5-dev \
+    libqt5svg5-dev \
+    libqt5websockets5-dev \
+    libqt5opengl5-dev \
+    libqt5x11extras5-dev \
     ros-$ROS_DISTRO-gazebo-ros-pkgs
 RUN rm -rf /var/lib/apt/lists/*
 

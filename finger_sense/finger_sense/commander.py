@@ -14,15 +14,15 @@ from tactile_interfaces.srv import ChangeState
 
 from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.15
+DISTANCE = 0.25
 LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = "BlackWool"
+MATERIAL_ = "NavyDenim"
 FORCES = [(i * 0.5 + 2.0, -1.0) for i in range(5)]
 FORCES = list(itertools.chain(*FORCES))
-SPEEDS = [0.001 * j + 0.01 for j in range(10)]
+SPEEDS = [0.01 * j + 0.01 for j in range(5)]
 
 
 class Commander(Node):
@@ -135,8 +135,8 @@ class Commander(Node):
                                 filename = (
                                     self.save_dir
                                     + MATERIAL_
-                                    + ("@%.1f" % force)
-                                    + ("@%.4f" % dx)
+                                    + ("@%.1fN" % force)
+                                    + ("@%.3fmps" % np.abs(dx))
                                     + ".csv"
                                 )
                                 np.savetxt(

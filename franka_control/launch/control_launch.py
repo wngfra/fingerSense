@@ -11,7 +11,7 @@ def generate_launch_description():
         parameters=[
             {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.csv'},
             {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
-            {'save_dir'  : './src/fingerSense/preprocess/data/fabrics_strechable/'},
+            {'save_dir'  : './src/fingerSense/preprocess/data/'},
             {'mode'      : 'train'}
         ],
         output='screen',

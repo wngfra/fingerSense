@@ -50,8 +50,8 @@ namespace franka_control
         double force_error_integral_, prev_force_error_;
 
         const double FILTER_GAIN{0.1};
-        const double K_P{1.5e-3};
-        const double K_I = 0.02 * K_P * K_P;
-        const double K_D = 0.55 * K_P;
+        const double K_P{2e-3};
+        const double K_I = 0.01 * K_P * K_P;
+        const double K_D = 0.65 * K_P;
     };
 } // namespace franka_control
