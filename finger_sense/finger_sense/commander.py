@@ -19,10 +19,10 @@ LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = "NavyDenim"
-FORCES = [(i * 0.5 + 2.0, -1.0) for i in range(5)]
+MATERIAL_ = "BlackWool"
+FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
 FORCES = list(itertools.chain(*FORCES))
-SPEEDS = [0.01 * j + 0.01 for j in range(5)]
+SPEEDS = [0.005 * j + 0.01 for j in range(9)]
 
 
 class Commander(Node):

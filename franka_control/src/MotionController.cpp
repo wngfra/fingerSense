@@ -81,18 +81,22 @@ namespace franka_control
             prev_force_error_ = 0.0;
         }
 
-        for (int i = 0; i < 3; i++)
+        auto time = time_ - 2.0;
+        if (time > 0)
         {
-            if (x_max_[i] != 0.0 && time_ <= time_max_[i])
+            for (int i = 0; i < 3; i++)
             {
+                if (x_max_[i] != 0.0 && time <= time_max_[i])
+                {
 
-                dx_[i] = dx_max_[i] + dx_max_[i] * std::sin(omega_[i] * time_ - M_PI_2);
+                    dx_[i] = dx_max_[i] + dx_max_[i] * std::sin(omega_[i] * time - M_PI_2);
+                }
             }
         }
 
         franka::CartesianVelocities output = {{dx_[0], dx_[1], dx_[2], 0.0, 0.0, 0.0}};
 
-        if (time_ >= *std::max_element(time_max_.begin(), time_max_.end()))
+        if (time >= *std::max_element(time_max_.begin(), time_max_.end()))
         {
             output.motion_finished = true;
             time_ = 0.0;
