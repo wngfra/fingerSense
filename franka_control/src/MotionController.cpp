@@ -2,6 +2,7 @@
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
 #include <algorithm>
+#include <stdio.h>
 #include <math.h>
 #include <numeric>
 
@@ -80,23 +81,18 @@ namespace franka_control
             force_error_integral_ = 0.0;
             prev_force_error_ = 0.0;
         }
-
-        auto time = time_ - 2.0;
-        if (time > 0)
+        for (int i = 0; i < 3; i++)
         {
-            for (int i = 0; i < 3; i++)
+            if (x_max_[i] != 0.0 && time_ <= time_max_[i])
             {
-                if (x_max_[i] != 0.0 && time <= time_max_[i])
-                {
 
-                    dx_[i] = dx_max_[i] + dx_max_[i] * std::sin(omega_[i] * time - M_PI_2);
-                }
+                dx_[i] = dx_max_[i] + dx_max_[i] * std::sin(omega_[i] * time_ - M_PI_2);
             }
         }
 
         franka::CartesianVelocities output = {{dx_[0], dx_[1], dx_[2], 0.0, 0.0, 0.0}};
 
-        if (time >= *std::max_element(time_max_.begin(), time_max_.end()))
+        if (time_ > *std::max_element(time_max_.begin(), time_max_.end()))
         {
             output.motion_finished = true;
             time_ = 0.0;
@@ -122,6 +118,7 @@ namespace franka_control
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
         position_d_[0] = pose_d[12];
+        position_d_[1] = pose_d[13];
         position_d_[2] = pose_d[14];
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;

@@ -56,7 +56,7 @@ namespace franka_control
         double force;
         bool is_touched;
 
-        const std::array<double, 7> q_goal = {{0.0136753,-0.168999,0.036906,-2.43915,-0.00318729,2.25804,-0.6807243}};
+        const std::array<double, 7> q_goal = {{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
 
         std::shared_ptr<FrankaStates> franka_states_;
         std::shared_ptr<franka::Robot> robot_;

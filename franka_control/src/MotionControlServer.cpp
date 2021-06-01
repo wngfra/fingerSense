@@ -15,14 +15,14 @@ namespace franka_control
             speed = request->speed;
 
             std::array<double, 6> damping_coefficient;
-            damping_coefficient.fill(1.0);
+            damping_coefficient.fill(0.8);
 
             controller_->set_parameter(force, distance, speed);
             if (force > 0.0)
             {
                 if (!is_touched)
                 {
-                    controller_->set_stiffness({{1000, 1000, 300, 300, 300, 300}}, damping_coefficient);
+                    controller_->set_stiffness({{1000, 1000, 200, 300, 300, 300}}, damping_coefficient);
                     robot_->control(    
                         [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques {
                             update_franka_states(robot_state);
@@ -33,7 +33,7 @@ namespace franka_control
                     RCLCPP_INFO(this->get_logger(), "Touched the platform.");
 
                     controller_->set_initial_orientation(robot_->readOnce());
-                    controller_->set_stiffness({{3000, 3000, 450, 300, 100, 300}}, damping_coefficient);
+                    controller_->set_stiffness({{3000, 3000, 400, 300, 300, 300}}, damping_coefficient);
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);

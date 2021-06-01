@@ -19,7 +19,7 @@ LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = 64
 
-MATERIAL_ = "BlackWool"
+MATERIAL_ = "GreenVelvet"
 FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
 FORCES = list(itertools.chain(*FORCES))
 SPEEDS = [0.005 * j + 0.01 for j in range(9)]
@@ -70,7 +70,7 @@ class Commander(Node):
             "Gaussian",
         )
 
-        self.direction = 1.0
+        self.direction = -1.0
 
         self.lap = 0
         self.index = [0, 0]
@@ -118,12 +118,12 @@ class Commander(Node):
                         recovered = False
                     if self.index[0] == 0 and self.lap == 0 or success or recovered:
                         force = FORCES[self.index[0]]
-                        dx = SPEEDS[self.index[1]] * self.direction
-                        x = DISTANCE * self.direction
+                        dy = SPEEDS[self.index[1]] * self.direction
+                        y = DISTANCE * self.direction
                         t = self.get_clock().now().nanoseconds
                         self.get_logger().info("current time: {}".format(t))
                         self.send_sliding_control_request(
-                            force, [x, 0.0, 0.0], [dx, 0.0, 0.0]
+                            force, [0.0, y, 0.0], [0.0, dy, 0.0]
                         )
                         self.direction *= -1.0
                         if force > 0.0:
@@ -136,7 +136,7 @@ class Commander(Node):
                                     self.save_dir
                                     + MATERIAL_
                                     + ("@%.1fN" % force)
-                                    + ("@%.3fmps" % np.abs(dx))
+                                    + ("@%.3fmps" % np.abs(dy))
                                     + ".csv"
                                 )
                                 np.savetxt(
@@ -145,7 +145,7 @@ class Commander(Node):
                                 self.trainset = []
                         else:
                             self.index[1] = len(SPEEDS) + 1
-                            self.direction = 1.0
+                            self.direction = -1.0
         else:
             """
             TODO perception mode; update control params

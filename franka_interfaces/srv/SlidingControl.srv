@@ -1,6 +1,8 @@
 float64 force
 float64[3] distance
 float64[3] speed
+float64 stiffness
+float64 damping_factor
 ---
 bool success
 bool recovered
