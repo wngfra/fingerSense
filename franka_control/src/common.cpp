@@ -55,7 +55,6 @@ void setDefaultBehavior(franka::Robot &robot)
                              {{75.0, 75.0, 75.0, 75.0, 75.0, 75.0, 75.0}},
                              {{75.0, 75.0, 75.0, 75.0, 75.0, 75.0}},
                              {{75.0, 75.0, 75.0, 75.0, 75.0, 75.0}});
-  // robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
   robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
 }
 
@@ -118,7 +117,8 @@ bool MotionGenerator::calculateDesiredValues(double t, Vector7d *delta_q_d) cons
     }
   }
   return std::all_of(joint_motion_finished.cbegin(), joint_motion_finished.cend(),
-                     [](bool x) { return x; });
+                     [](bool x)
+                     { return x; });
 }
 
 void MotionGenerator::calculateSynchronizedValues()

@@ -1,5 +1,3 @@
-// Copyright (c) 2017 Franka Emika GmbH
-// Use of this source code is governed by the Apache-2.0 license, see LICENSE
 #pragma once
 
 #include <array>
@@ -12,8 +10,8 @@
 #include <franka/robot_state.h>
 
 /**
- * @file examples_common.h
- * Contains common types and functions for the examples.
+ * @file common.h
+ * Contains common types and functions.
  */
 
 struct FrankaStates
