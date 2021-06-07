@@ -15,12 +15,12 @@ for i = 1:length(fileList)
     x = readmatrix(fileName);
     
     L = floor(length(x) / numParts);
-    audio = reshape(x(1:L*numParts, :), L, numFeatures, numParts);
+    segments = reshape(x(1:L*numParts, :), L, numFeatures, numParts);
     label(1:numParts) = namegroups(1);
     
-    audioSeqs = squeeze(num2cell(audio, [2, 1]));
+    sequences = squeeze(num2cell(segments, [2, 1]));
     
-    XTrain = [XTrain; audioSeqs];
+    XTrain = [XTrain; sequences];
     labels = [labels, label(1:numParts)];
 end
 YTrain = categorical(labels).';

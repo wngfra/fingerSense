@@ -1,7 +1,7 @@
 clear all
 close all
 
-folderDir = './';
+folderDir = '../';
 fileList = dir(fullfile(folderDir, '*.wav'));
 
 tracks = []; % Store all stereo tracks
