@@ -117,7 +117,7 @@ namespace franka_control
         // compute error to desired equilibrium pose
         // position error
         std::array<double, 16> pose_d(robot_state.O_T_EE_d);
-        position_d_[0] = pose_d[12];
+        // position_d_[0] = pose_d[12];
         position_d_[1] = pose_d[13];
         position_d_[2] = pose_d[14];
 
@@ -215,7 +215,7 @@ namespace franka_control
         }
         else
         {
-            position_d_[0] += 1e-6;
+            // position_d_[0] += 1e-6;
             position_d_[2] -= 5e-5;
         }
 

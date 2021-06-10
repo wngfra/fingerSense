@@ -9,9 +9,9 @@ def generate_launch_description():
         package='finger_sense',
         executable='commander',
         parameters=[
-            {'core_dir'  : './src/fingerSense/finger_sense/finger_sense/core.csv'},
-            {'factor_dir': './src/fingerSense/finger_sense/finger_sense/factors.npy'},
-            {'save_dir'  : './src/fingerSense/preprocess/data/'},
+            {'core_dir'  : './src/fingerSense/data/core.npy'},
+            {'factor_dir': './src/fingerSense/data/factors.npy'},
+            {'save_dir'  : './src/fingerSense/data/'},
             {'mode'      : 'train'}
         ],
         output='screen',
