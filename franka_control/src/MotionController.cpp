@@ -68,6 +68,7 @@ namespace franka_control
     franka::CartesianVelocities MotionController::LinearRelativeMotion(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
+        *current_state_ = robot_state;
 
         if (time_ == 0.0)
         {
@@ -103,8 +104,6 @@ namespace franka_control
 
     franka::Torques MotionController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
-        *current_state_ = robot_state;
-
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);

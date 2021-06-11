@@ -13,8 +13,8 @@
 #include <franka/model.h>
 #include <franka/robot.h>
 
-#include "common.h"
-#include "MotionController.h"
+#include "franka_control/common.h"
+#include "franka_control/MotionController.h"
 #include "franka_interfaces/msg/robot_state.hpp"
 #include "franka_interfaces/srv/sliding_control.hpp"
 
@@ -25,7 +25,7 @@ namespace franka_control
     class MotionControlServer : public rclcpp::Node
     {
     public:
-        MotionControlServer(std::shared_ptr<franka::Robot> robot, std::shared_ptr<float> fp);
+        MotionControlServer(std::shared_ptr<franka::Robot> robot);
 
     private:
         void timer_callback();

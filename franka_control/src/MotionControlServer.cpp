@@ -9,7 +9,7 @@
 
 namespace franka_control
 {
-    MotionControlServer::MotionControlServer(std::shared_ptr<franka::Robot> robot, std::shared_ptr<float> fp) : Node("sliding_control_server")
+    MotionControlServer::MotionControlServer(std::shared_ptr<franka::Robot> robot) : Node("sliding_control_server")
     {
         robot_ = robot;
 

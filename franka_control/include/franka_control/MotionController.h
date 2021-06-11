@@ -13,7 +13,7 @@
 #include <franka/model.h>
 #include <franka/robot.h>
 
-#include "common.h"
+#include "franka_control/common.h"
 
 namespace franka_control
 {

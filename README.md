@@ -22,16 +22,19 @@
 4. z-axis force control for sliding
 
 ## Quick Guide
-1. Clone the repository and the submodules in a `ros2` work directory
+1. Clone the repository and the submodules into a `ros2` workspace
 ```bash
 git clone --recursive https://github.com/wngfra/fingerSense.git ~/ros2_ws/src/fingerSense
 ```
-2. Create a container using `run_container.sh` script in `docker` folder
+2. Create a development container using
 ```bash
-./<path-to-docker-folder>/run_container.sh <container-name> 
+docker run -it --tty --gpus all --user ubuntu --name fingerSense -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws wngfra/ros2cuda:franka-dev
 ```
-3. Build the packages in the container
+3. Create a deployment container with
+```bash
+docker run -it --tty --device /dev/dri --gpus all --user ubuntu --name fingerSense_gui -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws -v /tmp/.X11-unix:/tmp/.X11-unix:rw --net=host -e DISPLAY=$DISPLAY -e XAUTHORITY -e NVIDIA_DRIVER_CAPABILITIES=all wngfra/ros2cuda:franka-dev
+```
+4. Build the packages in the container & source the env
 ```bash
 colcon buil --symlink-install && . install/setup.bash
 ```
-4. Happy hacking!
