@@ -48,10 +48,6 @@ target_link_libraries(common PUBLIC Eigen3::Eigen3 Franka::Franka)
 target_link_libraries(motion_controller PUBLIC Eigen3::Eigen3 Franka::Franka)
 
 # add ROS2 libraries 
-add_library(franka_state_publisher STATIC
-  src/FrankaStatePublisher.cpp
-)
-
 add_library(motion_control_server STATIC
   src/MotionControlServer.cpp
 )
@@ -60,10 +56,7 @@ add_library(tactile_subscriber STATIC
   src/TactileSubscriber.cpp
 )
 
-ament_target_dependencies(franka_state_publisher
-  "franka_interfaces"
-  "rclcpp"
-)
+target_link_libraries(motion_control_server Eigen3::Eigen3)
 
 ament_target_dependencies(motion_control_server
   "franka_interfaces"
@@ -84,7 +77,6 @@ foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target}
     common
-    franka_state_publisher
     motion_controller
     motion_control_server
     tactile_subscriber

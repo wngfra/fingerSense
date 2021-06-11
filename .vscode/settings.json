@@ -76,7 +76,16 @@
         "dense": "cpp",
         "eigenvalues": "cpp",
         "*.txx": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "regex": "cpp",
+        "cholesky": "cpp",
+        "geometry": "cpp",
+        "householder": "cpp",
+        "jacobi": "cpp",
+        "lu": "cpp",
+        "qr": "cpp",
+        "svd": "cpp",
+        "stdvector": "cpp"
     },
     "python.pythonPath": "/usr/bin/python3",
     "python.formatting.provider": "autopep8"

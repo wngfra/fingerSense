@@ -13,10 +13,10 @@
 namespace franka_control
 {
 
-    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<float> fp)
+    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<franka::RobotState> current_state)
     {
         model_ptr_ = model_ptr;
-        fp_ = fp;
+        current_state_ = current_state;
     }
 
     void MotionController::set_initial_orientation(const franka::RobotState &robot_state)
@@ -103,6 +103,8 @@ namespace franka_control
 
     franka::Torques MotionController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
+        *current_state_ = robot_state;
+
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
@@ -158,6 +160,7 @@ namespace franka_control
     franka::Torques MotionController::dynamic_impedance_control(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
+        *current_state_ = robot_state;
 
         if (time_ == 0.0)
         {

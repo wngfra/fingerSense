@@ -14,12 +14,6 @@
  * Contains common types and functions.
  */
 
-struct FrankaStates
-{
-  std::array<double, 6> external_wrench;
-  std::array<double, 16> end_effector_pose;
-};
-
 /**
  * Gets a real-time configuration based on linux kernel version
  *
