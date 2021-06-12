@@ -17,7 +17,7 @@ from finger_sense.Perceptum import Perceptum
 DISTANCE = 0.25
 LATENT_DIM = 3
 NUM_BASIS = 33
-STACK_SIZE = 64
+STACK_SIZE = None
 
 MATERIAL_ = "NavyDenim"
 FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
@@ -41,18 +41,16 @@ class Commander(Node):
 
         self.get_params()
 
-        self.robot_state = [np.zeros(6), np.zeros(16)]
-        self.tactile_stack = deque(maxlen=STACK_SIZE)
+        self.buffer = deque(maxlen=STACK_SIZE)
 
         self.sub_robot = self.create_subscription(
-            RobotState, "franka_state", self.robot_callback, 100
+            RobotState, "franka_state", self.robot_state_callback, 100
         )
         self.sub_tactile = self.create_subscription(
             TactileSignal, "tactile_signals", self.tactile_callback, 10
         )
 
-        self.sliding_control_cli = self.create_client(
-            SlidingControl, "sliding_control")
+        self.sliding_control_cli = self.create_client(SlidingControl, "sliding_control")
         self.sliding_control_req = SlidingControl.Request()
         self.sensor_cli = self.create_client(
             ChangeState, "tactile_publisher/change_state"
@@ -75,8 +73,6 @@ class Commander(Node):
         self.lap = 0
         self.index = [0, 0]
 
-        self.trainset = []
-
     def get_params(self):
         self.save_dir = str(self.get_parameter("save_dir").value)
         self.mode = str(self.get_parameter("mode").value)
@@ -91,20 +87,20 @@ class Commander(Node):
             if not os.path.exists(d):
                 self.dirs[k] = None
 
-    def robot_callback(self, msg):
-        self.robot_state = [msg.o_f_ext_hat_k, msg.o_t_ee]
+    def robot_state_callback(self, msg):
+        states = [msg.position, msg.orientation, msg.velocity, msg.external_wrench]
+        self.robot_state = np.hstack(states)
 
     def tactile_callback(self, msg):
         raw_data = msg.data
-        self.tactile_stack.append(raw_data)
 
         if self.mode == "train":
-            """ 
+            """
             training mode
             TODO: put the sequencial command into a generator
             """
             if self.index[0] < len(FORCES):
-                self.trainset.append(raw_data)
+                self.buffer.append(np.hstack([raw_data, self.robot_state]))
                 if self.index[1] >= len(SPEEDS):
                     self.index[0] += 1
                     self.index[1] = 0
@@ -131,7 +127,7 @@ class Commander(Node):
                             if self.lap > 3:
                                 self.index[1] += 1
                                 self.lap = 0
-                                trainset = np.asarray(self.trainset)
+                                trainset = np.asarray(self.buffer)
                                 filename = (
                                     self.save_dir
                                     + MATERIAL_
@@ -140,9 +136,8 @@ class Commander(Node):
                                     + ".csv"
                                 )
                                 np.savetxt(
-                                    filename, trainset, delimiter=",", fmt="%d"
+                                    filename, trainset, delimiter=",", fmt="%.3f"
                                 )
-                                self.trainset = []
                         else:
                             self.index[1] = len(SPEEDS) + 1
                             self.direction = -1.0
@@ -170,10 +165,7 @@ class Commander(Node):
                         np.outer(
                             delta_latent,
                             1
-                            / (
-                                self.current_control_params
-                                - self.prev_control_params
-                            ),
+                            / (self.current_control_params - self.prev_control_params),
                         ),
                     ),
                     axis=0,
@@ -187,8 +179,7 @@ class Commander(Node):
                     self.send_request(force, speed)
                 except Exception as e:
                     self.get_logger().warn(
-                        "Change sliding parameter service call failed %r" % (
-                            e,)
+                        "Change sliding parameter service call failed %r" % (e,)
                     )
 
     def send_sliding_control_request(self, force, distance, speed):
