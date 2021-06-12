@@ -24,8 +24,6 @@ def main():
         print("File does not exist!")
         exit(1)
 
-    df = df.iloc[:200, 3:]
-
     # Compute the frequency spectrum
     L = len(df)
     Y = fft(df, axis=0)
@@ -33,14 +31,12 @@ def main():
     Ys = Ys[1:L//2+1, :]
 
     # Plot both time and frequency domains
-    # _ = plt.figure(figsize=(20, 20))
-    # plt.subplot(211)
-    # plt.plot(df)
-    # plt.subplot(212)
-    # plt.plot(Ys)
-    # plt.suptitle(os.path.basename(filepath), fontsize=20)
-    # plt.show()
+    _ = plt.figure()
+    plt.subplot(211)
     plt.plot(df)
+    plt.subplot(212)
+    plt.plot(Ys)
+    plt.suptitle(os.path.basename(filepath), fontsize=20)
     plt.show()
 
 

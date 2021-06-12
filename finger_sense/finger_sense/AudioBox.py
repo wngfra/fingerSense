@@ -24,14 +24,14 @@ class AudioBox:
         """This is called (from a separate thread) for each audio block."""
         if status:
             print(status, file=sys.stderr)
-        # Fancy indexing with mapping creates a (necessary!) copy:
+        # Fancy indexing with mapping creates a (necessary!) copy
         self.buffer.append(indata[:, self.mapping])
 
     def record(self, duration=None, aync=False):
         """Start recording; if duration=None, wait for stop command."""
         self.stream.start()
         if duration is not None:
-            time.sleep(int(duration * 1000))
+            time.sleep(duration)
             self.stream.stop()
     
     def stop(self):
@@ -42,9 +42,11 @@ class AudioBox:
         np.savetxt(filename, self.buffer, )
 
     def plot(self):
-        plt.plot(self.buffer)
+        data_series = np.vstack(self.buffer)
+        plt.plot(data_series)
         plt.show()
 
 if __name__=='__main__':
     ab = AudioBox(device=1)
-    ab.record(duration=3.0)
+    ab.record(duration=1.0)
+    ab.plot()

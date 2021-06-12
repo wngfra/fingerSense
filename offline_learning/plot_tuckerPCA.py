@@ -92,7 +92,7 @@ def main():
     df = pd.concat([df1, df2], axis=1)
 
     # generate random color map
-    ums = pd.unique(df["speed"])
+    ums = pd.unique(df["material"])
     cmap = get_cmap(len(ums))
 
     fig = plt.figure()
@@ -103,7 +103,7 @@ def main():
     for i, m in enumerate(ums):
         if needDebug:
             # plot coefficients and covariance matrix
-            X = df.loc[df["speed"] == m]
+            X = df.loc[df["material"] == m]
 
             # plot core vectors
             xs, ys, zs = X["x1"], X["x2"], X["x3"]

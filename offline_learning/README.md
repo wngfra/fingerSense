@@ -1,3 +1,1 @@
-# Samples and processing scripts
-- `data` contains samples from planar sliding experiments
-- `audio` contains audio samples and processing scripts
+# Offline data analysis and texture classification
