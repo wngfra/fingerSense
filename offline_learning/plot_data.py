@@ -8,8 +8,6 @@ import pandas as pd
 
 from numpy.fft import fft
 
-Fs = 32
-
 
 def main():
     if len(sys.argv) < 2:

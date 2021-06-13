@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import enum
 import os
 import re
 import sys
@@ -9,109 +10,96 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.fft import fft
 
-# from skfda import FDataGrid
-# from skfda.representation import basis
+from skfda import FDataGrid
+from skfda.representation import basis
 from tensorly.decomposition import tucker
-
-
-needDebug = True
-needSave = False
 
 Fs = 32
 N_BASIS = 17
+N_SPLITS = 3  # experiment repetition
 OFFSET = 1
 DATA_PATH = None
 SAVE_PATH = None
 
+# construct Fourier basis
+fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
+
 
 def get_cmap(n, name="plasma"):
+    ''' Get a color map for 3D plot.'''
     return plt.cm.get_cmap(name, n)
 
 
+def compute_cov_fft(data):
+    pass
+
+
+def compute_cov_fda(data):
+    ''' Compute covariance matrix with functional basis decomposition.'''
+    splits = np.array_split(data, N_SPLITS, axis=0)
+    cov = np.zeros((N_BASIS, N_BASIS, N_SPLITS))
+    for i, ds in enumerate(splits):
+        fd = FDataGrid(ds.T).to_basis(fd_basis)
+        coeffs = fd.coefficients.squeeze()
+        cov[:, :, i] = np.cov(coeffs.T)
+
+    return cov
+
+
 def main():
-    """Pre-processing data and save to files
-    NOTE extract projection matrices by tucker decomposition
-    """
+    ''' Tensor PCA by tucker decomposition.'''
     try:
-        # find all csv files
         dirs = os.listdir(DATA_PATH)
         files = list(filter(lambda x: "csv" in x, dirs))
     except ValueError:
         print("Data directory wrong!")
 
-    # construct Fourier basis
-    # fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
-
     # prepare covariance tensor
-    cov_tensor = np.zeros((Fs * 16, Fs * 16, len(files)))
+    cov_fda = np.zeros((N_BASIS, N_BASIS, len(files * N_SPLITS)))
+    cov_fft = np.zeros((Fs * 16, Fs * 16, len(files)))
 
-    # prepare data list
-    tags = []
+    tags = []  # data label
 
     for i, f in enumerate(files):
-        # extract data info from filename
+        # extract label from filename
         basename = os.path.splitext(f)[0]
         namegroup = basename.split("@")
         material = namegroup[0]
-        pressure = re.search(r"\d+.\d+", namegroup[1]).group(0)
+        force = re.search(r"\d+.\d+", namegroup[1]).group(0)
         speed = re.search(r"\d+.\d+", namegroup[2]).group(0)
 
-        tags.append((material, pressure, speed))
+        for _ in range(N_SPLITS):
+            tags.append((material, force, speed))
 
-        # load data
         data = pd.read_csv(f"{DATA_PATH}{f}", header=None)
+        cov_fda[:, :, i*N_SPLITS:i*N_SPLITS + N_SPLITS] = compute_cov_fda(data)
 
-        # splits data into equal-sized segments
-        L = len(data)
-        N = L // (Fs * 2)
-        data = data.iloc[L - N * (Fs * 2):, :]
-        splits = np.array_split(data, N, axis=0)
-        sample = np.zeros((Fs * 16, len(splits)))
-
-        # transforms to covariance of fourier coefficients
-        for j, sd in enumerate(splits):
-            # fd = FDataGrid(sd.T).to_basis(fd_basis)
-            # coeffs = fd.coefficients.squeeze()
-            Y = fft(sd, axis=0)
-            Ys = np.abs(Y / len(sd))
-            Ys = Ys[1: len(Ys) // 2 + 1, :]
-            sample[:, j] = Ys.flatten()
-
-        cov = np.cov(sample)
-        cov_tensor[:, :, i] = cov
-
-    """ tucker decomposition
-    """
+    # tucker decomposition
+    cov_tensor = cov_fda
     core, factors = tucker(cov_tensor, rank=(3, 1, cov_tensor.shape[2]))
-    core3d = core.squeeze().T
+    core3d = core.squeeze().T  # get projected vectors
 
     # save tags into DataFrame
     df1 = pd.DataFrame(
         tags, columns=["material", "pressure", "speed"], dtype=float)
     df2 = pd.DataFrame(core3d, columns=["x1", "x2", "x3"], dtype=float)
-    df = pd.concat([df1, df2], axis=1)
+    df = pd.concat([df1, np.log10(df2)], axis=1)
 
     # generate random color map
-    ums = pd.unique(df["material"])
-    cmap = get_cmap(len(ums))
+    classes = pd.unique(df["material"])
+    cmap = get_cmap(len(classes))
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-
-    df = df.loc[np.abs(df["x1"]) < 1e-10]
-
-    for i, m in enumerate(ums):
-        if needDebug:
-            # plot coefficients and covariance matrix
-            X = df.loc[df["material"] == m]
-
-            # plot core vectors
-            xs, ys, zs = X["x1"], X["x2"], X["x3"]
-            ax.scatter(xs, ys, zs, s=30, c=np.tile(cmap(i), (len(xs), 1)))
-
+    for i, m in enumerate(classes):
+        X = df.loc[df["material"] == m]
+        # plot core vectors
+        xs, ys, zs = X["x1"], X["x2"], X["x3"]
+        ax.scatter(xs, ys, zs, s=30, c=np.tile(cmap(i), (len(xs), 1)))
+    ax.legend(classes)
     plt.show()
 
-    if needSave:
+    if SAVE_PATH is not None:
         df.to_csv(f"{SAVE_PATH}/core.csv")
         np.save(f"{SAVE_PATH}/factors.npy", factors, allow_pickle=True)
 
