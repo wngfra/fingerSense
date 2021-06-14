@@ -15,7 +15,7 @@ from skfda.representation import basis
 from tensorly.decomposition import tucker
 
 Fs = 32
-N_BASIS = 17
+N_BASIS = 33
 N_SPLITS = 3  # experiment repetition
 OFFSET = 1
 DATA_PATH = None
@@ -23,6 +23,7 @@ SAVE_PATH = None
 
 # construct Fourier basis
 fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
+transform = np.log2
 
 
 def get_cmap(n, name="plasma"):
@@ -71,7 +72,7 @@ def main():
         for _ in range(N_SPLITS):
             tags.append((material, force, speed))
 
-        data = pd.read_csv(f"{DATA_PATH}{f}", header=None)
+        data = pd.read_csv(f"{DATA_PATH}{f}", header=None, usecols=range(16))
         cov_fda[:, :, i*N_SPLITS:i*N_SPLITS + N_SPLITS] = compute_cov_fda(data)
 
     # tucker decomposition
@@ -83,7 +84,9 @@ def main():
     df1 = pd.DataFrame(
         tags, columns=["material", "pressure", "speed"], dtype=float)
     df2 = pd.DataFrame(core3d, columns=["x1", "x2", "x3"], dtype=float)
-    df = pd.concat([df1, np.log10(df2)], axis=1)
+    if transform != None:
+        df2 = transform(df2)
+    df = pd.concat([df1, df2], axis=1)
 
     # generate random color map
     classes = pd.unique(df["material"])
@@ -95,7 +98,7 @@ def main():
         X = df.loc[df["material"] == m]
         # plot core vectors
         xs, ys, zs = X["x1"], X["x2"], X["x3"]
-        ax.scatter(xs, ys, zs, s=30, c=np.tile(cmap(i), (len(xs), 1)))
+        ax.scatter(xs, ys, zs, s=20, c=np.tile(cmap(i), (len(xs), 1)))
     ax.legend(classes)
     plt.show()
 
