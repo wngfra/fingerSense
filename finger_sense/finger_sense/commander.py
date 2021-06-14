@@ -17,9 +17,9 @@ from finger_sense.Perceptum import Perceptum
 DISTANCE = 0.25
 LATENT_DIM = 3
 NUM_BASIS = 33
-STACK_SIZE = None
+STACK_SIZE = 32
 
-MATERIAL_ = "BlackPolymer"
+MATERIAL_ = "GreyDenim"
 FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
 FORCES = list(itertools.chain(*FORCES))
 SPEEDS = [0.005 * j + 0.01 for j in range(9)]
@@ -38,11 +38,7 @@ class Commander(Node):
                 ("mode", None),
             ],
         )
-
         self.get_params()
-
-        self.buffer = deque(maxlen=STACK_SIZE)
-        self.robot_state = np.zeros(19)
 
         self.sub_robot = self.create_subscription(
             RobotState, "franka_state", self.robot_state_callback, 100
@@ -50,7 +46,6 @@ class Commander(Node):
         self.sub_tactile = self.create_subscription(
             TactileSignal, "tactile_signals", self.tactile_callback, 10
         )
-
         self.sliding_control_cli = self.create_client(SlidingControl, "sliding_control")
         self.sliding_control_req = SlidingControl.Request()
         self.sensor_cli = self.create_client(
@@ -58,21 +53,24 @@ class Commander(Node):
         )
         self.sensor_req = ChangeState.Request()
 
-        self.prev_control_params = np.zeros(4)
-        self.current_control_params = np.zeros(4)
-
         # Create a perceptum class
         self.perceptum = Perceptum(
             self.dirs,
-            LATENT_DIM,  # latent dimension
+            LATENT_DIM, # latent dimension
             NUM_BASIS,  # number of basis
             "Gaussian",
         )
 
+        # control params
         self.direction = -1.0
-
+        self.prev_control_params = np.zeros(4)
+        self.current_control_params = np.zeros(4)
+        
+        # train params
         self.lap = 0
         self.index = [0, 0]
+        self.buffer = deque(maxlen=None) if self.mode == "train" else deque(maxlen=STACK_SIZE) 
+        self.robot_state = np.zeros(19)
 
     def get_params(self):
         self.save_dir = str(self.get_parameter("save_dir").value)
@@ -94,11 +92,11 @@ class Commander(Node):
 
     def tactile_callback(self, msg):
         raw_data = msg.data
+        self.buffer.append(np.hstack([raw_data, self.robot_state]))
 
         if self.mode == "train":
             ''' training mode '''
-            if self.index[0] < len(FORCES):
-                self.buffer.append(np.hstack([raw_data, self.robot_state]))
+            if self.index[0] < len(FORCES): 
                 if self.index[1] >= len(SPEEDS):
                     self.index[0] += 1
                     self.index[1] = 0
@@ -140,7 +138,7 @@ class Commander(Node):
                         else:
                             self.index[1] = len(SPEEDS) + 1
                             self.direction = -1.0
-        else:
+        if self.mode == "test":
             """
             TODO perception mode; update control params
             using 3D speed and distance vector

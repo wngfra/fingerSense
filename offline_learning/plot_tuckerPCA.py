@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 import enum
 import os
 import re
@@ -15,15 +14,14 @@ from skfda.representation import basis
 from tensorly.decomposition import tucker
 
 Fs = 32
-N_BASIS = 33
+N_BASIS = 33        
 N_SPLITS = 3  # experiment repetition
-OFFSET = 1
 DATA_PATH = None
 SAVE_PATH = None
 
 # construct Fourier basis
 fd_basis = basis.Fourier([0, np.pi], n_basis=N_BASIS, period=1)
-transform = np.log2
+transform = np.log
 
 
 def get_cmap(n, name="plasma"):
@@ -37,6 +35,7 @@ def compute_cov_fft(data):
 
 def compute_cov_fda(data):
     ''' Compute covariance matrix with functional basis decomposition.'''
+    data -= np.mean(data, axis=0)
     splits = np.array_split(data, N_SPLITS, axis=0)
     cov = np.zeros((N_BASIS, N_BASIS, N_SPLITS))
     for i, ds in enumerate(splits):
@@ -57,7 +56,7 @@ def main():
 
     # prepare covariance tensor
     cov_fda = np.zeros((N_BASIS, N_BASIS, len(files * N_SPLITS)))
-    cov_fft = np.zeros((Fs * 16, Fs * 16, len(files)))
+    # cov_fft = np.zeros((Fs * 16, Fs * 16, len(files)))
 
     tags = []  # data label
 
@@ -82,7 +81,7 @@ def main():
 
     # save tags into DataFrame
     df1 = pd.DataFrame(
-        tags, columns=["material", "pressure", "speed"], dtype=float)
+        tags, columns=["material", "force", "speed"], dtype=float)
     df2 = pd.DataFrame(core3d, columns=["x1", "x2", "x3"], dtype=float)
     if transform != None:
         df2 = transform(df2)
@@ -92,13 +91,13 @@ def main():
     classes = pd.unique(df["material"])
     cmap = get_cmap(len(classes))
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(30, 30))
     ax = fig.add_subplot(111, projection="3d")
     for i, m in enumerate(classes):
         X = df.loc[df["material"] == m]
         # plot core vectors
         xs, ys, zs = X["x1"], X["x2"], X["x3"]
-        ax.scatter(xs, ys, zs, s=20, c=np.tile(cmap(i), (len(xs), 1)))
+        ax.scatter(xs, ys, zs, s=30, c=np.tile(cmap(i), (len(xs), 1)))
     ax.legend(classes)
     plt.show()
 
