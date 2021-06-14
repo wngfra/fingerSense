@@ -47,8 +47,8 @@ namespace franka_control
         double target_force_, time_, desired_force_;
         double force_error_integral_, prev_force_error_;
 
-        const double FILTER_GAIN{0.1};
-        const double K_P{3e-3};
+        const double FILTER_GAIN{0.2};
+        const double K_P{2.5e-3};
         const double K_I = 0.01 * K_P * K_P;
         const double K_D = 0.55 * K_P;
     };

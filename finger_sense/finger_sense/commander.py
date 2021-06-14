@@ -1,28 +1,31 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
-import itertools
 import numpy as np
-import os.path
+import os
 import rclpy
+import time
 from collections import deque
 from rclpy.node import Node
+from std_msgs.msg import String
 
 from franka_interfaces.msg import RobotState
 from franka_interfaces.srv import SlidingControl
 from tactile_interfaces.msg import TactileSignal
 from tactile_interfaces.srv import ChangeState
 
-from finger_sense.Perceptum import Perceptum
 
-DISTANCE = 0.25
 LATENT_DIM = 3
-NUM_BASIS = 33
 STACK_SIZE = 32
 
-MATERIAL_ = "GreyDenim"
-FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
-FORCES = list(itertools.chain(*FORCES))
-SPEEDS = [0.005 * j + 0.01 for j in range(9)]
+# train params
+MATERIAL = "GreyDenim"
+DISTANCE = 0.25
+PARAMS = []
+for i in range(9):
+    for j in range(9):
+        PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
+        PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
+PARAMS.append((-1.0, 0.0, 0.0))
 
 
 class Commander(Node):
@@ -32,152 +35,89 @@ class Commander(Node):
         self.declare_parameters(
             namespace="",
             parameters=[
-                ("core_dir", None),
-                ("factor_dir", None),
                 ("save_dir", None),
                 ("mode", None),
             ],
         )
         self.get_params()
 
+        self.pub = self.create_publisher(String, 'commander_state', 10)
+        self.timer = self.create_timer(0.01, self.timer_callback)
         self.sub_robot = self.create_subscription(
             RobotState, "franka_state", self.robot_state_callback, 100
         )
         self.sub_tactile = self.create_subscription(
             TactileSignal, "tactile_signals", self.tactile_callback, 10
         )
-        self.sliding_control_cli = self.create_client(SlidingControl, "sliding_control")
+        self.sliding_control_cli = self.create_client(
+            SlidingControl, "sliding_control")
         self.sliding_control_req = SlidingControl.Request()
         self.sensor_cli = self.create_client(
             ChangeState, "tactile_publisher/change_state"
         )
         self.sensor_req = ChangeState.Request()
 
-        # Create a perceptum class
-        self.perceptum = Perceptum(
-            self.dirs,
-            LATENT_DIM, # latent dimension
-            NUM_BASIS,  # number of basis
-            "Gaussian",
-        )
-
         # control params
         self.direction = -1.0
-        self.prev_control_params = np.zeros(4)
-        self.current_control_params = np.zeros(4)
-        
-        # train params
-        self.lap = 0
-        self.index = [0, 0]
-        self.buffer = deque(maxlen=None) if self.mode == "train" else deque(maxlen=STACK_SIZE) 
         self.robot_state = np.zeros(19)
+        self.record = False
+        # mode dependent params
+        if self.mode == "train":
+            self.count = 0
+            self.initialized = False
+            self.buffer = deque(maxlen=None)
+
+        self.send_sliding_control_request(
+            0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
 
     def get_params(self):
         self.save_dir = str(self.get_parameter("save_dir").value)
         self.mode = str(self.get_parameter("mode").value)
 
-        core_dir = str(self.get_parameter("core_dir").value)
-        factor_dir = str(self.get_parameter("factor_dir").value)
-
-        self.dirs = {"core_dir": core_dir, "factor_dir": factor_dir}
-
-        # If file not exists, set dir to None
-        for k, d in self.dirs.items():
-            if not os.path.exists(d):
-                self.dirs[k] = None
-
     def robot_state_callback(self, msg):
-        states = [msg.position, msg.orientation, msg.velocity, msg.external_wrench]
+        states = [msg.position, msg.orientation,
+                  msg.velocity, msg.external_wrench]
         self.robot_state = np.hstack(states)
 
     def tactile_callback(self, msg):
-        raw_data = msg.data
-        self.buffer.append(np.hstack([raw_data, self.robot_state]))
+        self.buffer.append(np.hstack([msg.data, self.robot_state]))
 
-        if self.mode == "train":
-            ''' training mode '''
-            if self.index[0] < len(FORCES): 
-                if self.index[1] >= len(SPEEDS):
-                    self.index[0] += 1
-                    self.index[1] = 0
-                else:
-                    try:
-                        response = self.sliding_control_future.result()
-                        success = response.success
-                        recovered = response.recovered
-                    except Exception:
-                        success = False
-                        recovered = False
-                    if self.index[0] == 0 and self.lap == 0 or success or recovered:
-                        force = FORCES[self.index[0]]
-                        dy = SPEEDS[self.index[1]] * self.direction
-                        y = DISTANCE * self.direction
-                        t = self.get_clock().now().nanoseconds
-                        # self.get_logger().info("current time: {}".format(t))
-                        self.send_sliding_control_request(
-                            force, [0.0, y, 0.0], [0.0, dy, 0.0]
-                        )
-                        self.direction *= -1.0
-                        if force > 0.0:
-                            self.lap += 1
-                            if self.lap > 3:
-                                self.index[1] += 1
-                                self.lap = 0
-                                trainset = np.asarray(self.buffer)
-                                filename = (
-                                    self.save_dir
-                                    + MATERIAL_
-                                    + ("@%.1fN" % force)
-                                    + ("@%.3fmps" % np.abs(dy))
-                                    + ".csv"
-                                )
-                                np.savetxt(
-                                    filename, trainset, delimiter=",", fmt="%.3f"
-                                )
-                                self.get_logger().info("Saved to file {}.".format(filename))
-                        else:
-                            self.index[1] = len(SPEEDS) + 1
-                            self.direction = -1.0
-        if self.mode == "test":
-            """
-            TODO perception mode; update control params
-            using 3D speed and distance vector
-            invert sling direction every loop
-            """
-            try:
-                response = self.sliding_control_future.result()
-                success = response.success
-                recovered = response.recovered
-            except Exception:
-                success = False
-                recovered = False
-            if success or recovered:
-                gradients, weights, delta_latent = self.perceptum.perceive(
-                    self.tactile_stack
-                )
-                new_control = np.sum(
-                    weights
-                    * np.matmul(
-                        gradients,
-                        np.outer(
-                            delta_latent,
-                            1
-                            / (self.current_control_params - self.prev_control_params),
-                        ),
-                    ),
-                    axis=0,
-                )
-                self.prev_control_params = self.current_control_params
-                self.current_control_params = new_control
-                # TODO update control params
-                force = self.current_control_params[0]
-                speed = self.current_control_params[1:]
-                try:
-                    self.send_request(force, speed)
-                except Exception as e:
-                    self.get_logger().warn(
-                        "Change sliding parameter service call failed %r" % (e,)
-                    )
+    def timer_callback(self):
+        success = False
+        control_type = -1
+        try:
+            response = self.sliding_control_future.result()
+            success = response.success
+            control_type = response.type
+        except Exception:
+            success = False
+            control_type = -1
+
+        nanoseconds = self.get_clock().now().nanoseconds
+
+        if success and self.mode == "train" and self.count < len(PARAMS):
+            force = PARAMS[self.count][0]
+            dy = PARAMS[self.count][1]
+            y = PARAMS[self.count][2]
+            self.send_sliding_control_request(
+                force, [0.0, y, 0.0], [0.0, dy, 0.0])
+
+            # Save buffer
+            if control_type == 3:
+                basename = "{}_{:.1f}N_{:.3f}mmps_{}.npy".format(
+                    MATERIAL, 
+                    PARAMS[self.count-1][0], 
+                    PARAMS[self.count-1][1], 
+                    nanoseconds)
+                filename = os.path.join(self.save_dir, basename)
+                np.save(filename, self.buffer)
+                self.get_logger().info("Saved to file {}.".format(filename))
+
+            self.count += 1
+            self.buffer.clear()
+            msg = String()
+            msg.data = "Motion command sent @ {}ns".format(nanoseconds)
+            self.pub.publish(msg)
 
     def send_sliding_control_request(self, force, distance, speed):
         """
@@ -196,6 +136,7 @@ class Commander(Node):
 
 
 def main(args=None):
+    time.sleep(2)
     rclpy.init(args=args)
     node = Commander()
     rclpy.spin(node)

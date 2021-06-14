@@ -18,15 +18,15 @@ class TacDataset(Dataset):
         self.root_dir = root_dir
         self.transform = transform
 
-        self.filelist = glob.glob(os.path.join(root_dir, '*.csv'))
+        self.filelist = glob.glob(os.path.join(root_dir, '*.npy'))
         self.texture_labels = [""] * len(self.filelist)
         self.params = [(0.0, 0.0)] * len(self.filelist)
         for i, filename in enumerate(self.filelist):
             basename = os.path.basename(filename)
-            namegroups = basename.split('@')
+            namegroups = basename.split('_')
 
             self.texture_labels[i] = namegroups[0]
-            self.params = (namegroups[1][:-1], namegroups[2][:-7])
+            self.params = (namegroups[1][:-1], namegroups[2][:-4])
 
     def __len__(self):
         return len(self.filelist)

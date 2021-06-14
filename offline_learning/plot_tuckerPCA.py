@@ -52,7 +52,7 @@ def main():
     ''' Tensor PCA by tucker decomposition.'''
     try:
         dirs = os.listdir(DATA_PATH)
-        files = list(filter(lambda x: "csv" in x, dirs))
+        files = list(filter(lambda x: "npy" in x, dirs))
     except ValueError:
         print("Data directory wrong!")
 
@@ -65,7 +65,7 @@ def main():
     for i, f in enumerate(files):
         # extract label from filename
         basename = os.path.splitext(f)[0]
-        namegroup = basename.split("@")
+        namegroup = basename.split("_")
         material = namegroup[0]
         force = re.search(r"\d+.\d+", namegroup[1]).group(0)
         speed = re.search(r"\d+.\d+", namegroup[2]).group(0)

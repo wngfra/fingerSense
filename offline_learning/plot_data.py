@@ -4,7 +4,6 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 
 from numpy.fft import fft
 
@@ -30,7 +29,8 @@ def main():
     filepath = sys.argv[1]
 
     try:
-        df = pd.read_csv(filepath, header=0, usecols=range(16))
+        df = np.load(filepath)
+        df = df[:, :16]
     except FileNotFoundError:
         print("File does not exist!")
         exit(1)

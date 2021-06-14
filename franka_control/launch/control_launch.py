@@ -9,8 +9,6 @@ def generate_launch_description():
         package='finger_sense',
         executable='commander',
         parameters=[
-            {'core_dir'  : './src/fingerSense/data/core.npy'},
-            {'factor_dir': './src/fingerSense/data/factors.npy'},
             {'save_dir'  : './src/fingerSense/data/'},
             {'mode'      : 'train'}
         ],
@@ -20,10 +18,7 @@ def generate_launch_description():
 
     signal_pub_node = Node(
         package='can_wifi',
-        executable='tactile_signal_publisher',
-        parameters=[
-            {'mode' : 'processed'}
-        ],
+        executable='tactile_signal_publisher'
     )
 
     franka_control_node = Node(

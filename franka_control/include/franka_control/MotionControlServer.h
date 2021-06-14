@@ -38,7 +38,6 @@ namespace franka_control
         std::array<double, 3> distance;
         std::array<double, 3> speed;
         double force;
-        bool is_touched;
 
         const std::array<double, 7> q_goal = {{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
 

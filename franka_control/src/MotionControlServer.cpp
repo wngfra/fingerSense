@@ -33,8 +33,6 @@ namespace franka_control
 
         publisher_ = this->create_publisher<franka_interfaces::msg::RobotState>("franka_state", 10);
         timer_ = this->create_wall_timer(1ms, std::bind(&MotionControlServer::timer_callback, this));
-
-        is_touched = false;
     }
 
     void MotionControlServer::timer_callback()
@@ -62,6 +60,8 @@ namespace franka_control
 
     void MotionControlServer::controlled_slide(const std::shared_ptr<franka_interfaces::srv::SlidingControl::Request> request, std::shared_ptr<franka_interfaces::srv::SlidingControl::Response> response)
     {
+        bool success;
+        int control_type(0);
         try
         {
             force = request->force;
@@ -72,25 +72,32 @@ namespace franka_control
             damping_coefficient.fill(0.8);
 
             controller_->set_parameter(force, distance, speed);
-            if (force > 0.0)
+            if (force < 0.0)
             {
-                if (!is_touched)
-                {
-                    controller_->set_stiffness({{1000, 1000, 200, 300, 300, 300}}, damping_coefficient);
-                    robot_->control(
-                        [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
-                        {
-                            current_state_ = robot_state;
-                            return controller_->dynamic_impedance_control(robot_state, period);
-                        });
+                control_type = 1;
+                MotionGenerator mg(0.5, q_goal);
+                robot_->control(mg);
+            }
 
-                    is_touched = true;
-                    RCLCPP_INFO(this->get_logger(), "Touched the platform.");
+            else if (force == 0.0)
+            {
+                control_type = 2;
+                controller_->set_stiffness({{1000, 1000, 200, 300, 300, 300}}, damping_coefficient);
+                robot_->control(
+                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
+                    {
+                        current_state_ = robot_state;
+                        return controller_->dynamic_impedance_control(robot_state, period);
+                    });
 
-                    controller_->set_initial_orientation(robot_->readOnce());
-                    controller_->set_stiffness({{1000, 3000, 400, 300, 300, 300}}, damping_coefficient);
-                }
+                RCLCPP_INFO(this->get_logger(), "Touched the platform.");
 
+                controller_->set_initial_orientation(robot_->readOnce());
+                controller_->set_stiffness({{1000, 3000, 400, 300, 300, 300}}, damping_coefficient);  
+            }
+            else if (force > 0.0)
+            {
+                control_type = 3;
                 RCLCPP_INFO(this->get_logger(), "Sliding force: %f, distance: (%f, %f, %f), speed: (%f, %f, %f).", force, distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
@@ -103,34 +110,19 @@ namespace franka_control
                         return controller_->LinearRelativeMotion(robot_state, period);
                     });
             }
-            else if (force == 0.0)
-            {
-                RCLCPP_INFO(this->get_logger(), "Moving distance: (%f, %f, %f), speed: (%f, %f, %f).", distance[0], distance[1], distance[2], speed[0], speed[1], speed[2]);
-                robot_->control(
-                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities
-                    {
-                        current_state_ = robot_state;
-                        return controller_->LinearRelativeMotion(robot_state, period);
-                    });
-                is_touched = false;
-            }
-            else if (force < 0.0)
-            {
-                MotionGenerator mg(0.5, q_goal);
-                robot_->control(mg);
-                is_touched = false;
-            }
 
-            response->success = true;
-            response->recovered = false;
+            success = true;
         }
         catch (const std::exception &e)
         {
             robot_->automaticErrorRecovery();
 
             RCLCPP_WARN(this->get_logger(), "%s! Automatic recovery attempted.", e.what());
-            response->success = false;
-            response->recovered = true;
+            success = false;
+            control_type = -1;
         }
+
+        response->success = success;
+        response->type = control_type;
     }
 } // namespace franka_control

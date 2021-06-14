@@ -8,7 +8,7 @@
 
 #include "franka_control/MotionController.h"
 
-#define RATIO 0.1
+#define RATIO 0.2
 
 namespace franka_control
 {

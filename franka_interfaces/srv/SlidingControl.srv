@@ -5,4 +5,4 @@ float64 stiffness
 float64 damping_factor
 ---
 bool success
-bool recovered
+int8 type
