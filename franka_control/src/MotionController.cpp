@@ -13,10 +13,9 @@
 namespace franka_control
 {
 
-    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr, std::shared_ptr<franka::RobotState> current_state)
+    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr)
     {
         model_ptr_ = model_ptr;
-        current_state_ = current_state;
     }
 
     void MotionController::set_initial_orientation(const franka::RobotState &robot_state)
@@ -68,7 +67,6 @@ namespace franka_control
     franka::CartesianVelocities MotionController::LinearRelativeMotion(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
-        *current_state_ = robot_state;
 
         if (time_ == 0.0)
         {
@@ -159,7 +157,6 @@ namespace franka_control
     franka::Torques MotionController::dynamic_impedance_control(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
-        *current_state_ = robot_state;
 
         if (time_ == 0.0)
         {

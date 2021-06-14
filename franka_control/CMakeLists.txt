@@ -52,10 +52,6 @@ add_library(motion_control_server STATIC
   src/MotionControlServer.cpp
 )
 
-add_library(tactile_subscriber STATIC
-  src/TactileSubscriber.cpp
-)
-
 target_link_libraries(motion_control_server
   common
   motion_controller
@@ -68,11 +64,6 @@ ament_target_dependencies(motion_control_server
   "rclcpp"
 )
 
-ament_target_dependencies(tactile_subscriber
-  "tactile_interfaces"
-  "rclcpp"
-)
-
 # Build apps
 set(APPS
   node_launcher
@@ -81,11 +72,7 @@ set(APPS
 foreach(target ${APPS})
   add_executable(${target} src/${target}.cpp)
   target_link_libraries(${target}
-    common
-    motion_control_server
-    # tactile_subscriber
-    # Threads::Threads
-    Franka::Franka)
+    motion_control_server)
   ament_target_dependencies(${target}
     "rclcpp")
   install(TARGETS ${target}

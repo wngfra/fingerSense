@@ -19,7 +19,7 @@ LATENT_DIM = 3
 NUM_BASIS = 33
 STACK_SIZE = None
 
-MATERIAL_ = "NavyDenim"
+MATERIAL_ = "BlackPolymer"
 FORCES = [(i * 0.5 + 1.0, -1.0) for i in range(9)]
 FORCES = list(itertools.chain(*FORCES))
 SPEEDS = [0.005 * j + 0.01 for j in range(9)]
@@ -42,6 +42,7 @@ class Commander(Node):
         self.get_params()
 
         self.buffer = deque(maxlen=STACK_SIZE)
+        self.robot_state = np.zeros(19)
 
         self.sub_robot = self.create_subscription(
             RobotState, "franka_state", self.robot_state_callback, 100
@@ -95,10 +96,7 @@ class Commander(Node):
         raw_data = msg.data
 
         if self.mode == "train":
-            """
-            training mode
-            TODO: put the sequencial command into a generator
-            """
+            ''' training mode '''
             if self.index[0] < len(FORCES):
                 self.buffer.append(np.hstack([raw_data, self.robot_state]))
                 if self.index[1] >= len(SPEEDS):
@@ -117,7 +115,7 @@ class Commander(Node):
                         dy = SPEEDS[self.index[1]] * self.direction
                         y = DISTANCE * self.direction
                         t = self.get_clock().now().nanoseconds
-                        self.get_logger().info("current time: {}".format(t))
+                        # self.get_logger().info("current time: {}".format(t))
                         self.send_sliding_control_request(
                             force, [0.0, y, 0.0], [0.0, dy, 0.0]
                         )
@@ -138,6 +136,7 @@ class Commander(Node):
                                 np.savetxt(
                                     filename, trainset, delimiter=",", fmt="%.3f"
                                 )
+                                self.get_logger().info("Saved to file {}.".format(filename))
                         else:
                             self.index[1] = len(SPEEDS) + 1
                             self.direction = -1.0

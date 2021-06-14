@@ -20,7 +20,7 @@ namespace franka_control
     class MotionController
     {
     public:
-        MotionController(const std::shared_ptr<franka::Model>, std::shared_ptr<franka::RobotState>);
+        MotionController(const std::shared_ptr<franka::Model>);
         // ~MotionController();
 
         void set_initial_orientation(const franka::RobotState &robot_state);
@@ -41,7 +41,6 @@ namespace franka_control
         Eigen::VectorXd initial_tau_ext_;
 
         franka::RobotState initial_state_;
-        std::shared_ptr<franka::RobotState> current_state_;
 
         std::array<double, 3> x_max_, dx_max_, dx_, sgn_, omega_, accel_time_, const_v_time_, time_max_;
 

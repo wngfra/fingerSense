@@ -5,24 +5,19 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
+#include "franka_control/common.h"
 #include "franka_control/MotionControlServer.h"
 
 namespace franka_control
 {
-    MotionControlServer::MotionControlServer(std::shared_ptr<franka::Robot> robot) : Node("sliding_control_server")
+    MotionControlServer::MotionControlServer(char *robot_ip) : Node("sliding_control_server")
     {
-        robot_ = robot;
-
+        robot_ = std::make_unique<franka::Robot>(robot_ip, getRealtimeConfig());
         setDefaultBehavior(*robot_);
+        RCLCPP_INFO(this->get_logger(), "Connected to robot@%s", robot_ip);
+
         model_ = std::make_shared<franka::Model>(robot_->loadModel());
-        controller_ = std::make_unique<MotionController>(model_, current_state_);
-
-        service_ = this->create_service<franka_interfaces::srv::SlidingControl>("/sliding_control", std::bind(&MotionControlServer::controlled_slide, this, std::placeholders::_1, std::placeholders::_2));
-
-        publisher_ = this->create_publisher<franka_interfaces::msg::RobotState>("franka_state", 10);
-        timer_ = this->create_wall_timer(1ms, std::bind(&MotionControlServer::timer_callback, this));
-
-        is_touched = false;
+        controller_ = std::make_unique<MotionController>(model_);
 
         try
         {
@@ -33,6 +28,13 @@ namespace franka_control
         {
             RCLCPP_WARN(this->get_logger(), "%s", e.what());
         }
+
+        service_ = this->create_service<franka_interfaces::srv::SlidingControl>("/sliding_control", std::bind(&MotionControlServer::controlled_slide, this, std::placeholders::_1, std::placeholders::_2));
+
+        publisher_ = this->create_publisher<franka_interfaces::msg::RobotState>("franka_state", 10);
+        timer_ = this->create_wall_timer(1ms, std::bind(&MotionControlServer::timer_callback, this));
+
+        is_touched = false;
     }
 
     void MotionControlServer::timer_callback()
@@ -41,18 +43,18 @@ namespace franka_control
         msg.header.frame_id = "base";
         msg.header.stamp = this->get_clock()->now();
 
-        msg.external_wrench = current_state_->O_F_ext_hat_K;
+        msg.external_wrench = current_state_.O_F_ext_hat_K;
 
-        Eigen::Affine3d transform(Eigen::Matrix4d::Map(current_state_->O_T_EE.data()));
+        Eigen::Affine3d transform(Eigen::Matrix4d::Map(current_state_.O_T_EE.data()));
         Eigen::Vector3d position(transform.translation());
         Eigen::Quaterniond orientation(transform.linear());
 
         Eigen::VectorXd::Map(&msg.position[0], 3) = position;
         Eigen::VectorXd::Map(&msg.orientation[0], 4) = orientation.coeffs();
 
-        std::array<double, 42> jacobian_array = model_->zeroJacobian(franka::Frame::kEndEffector, *current_state_);
+        std::array<double, 42> jacobian_array = model_->zeroJacobian(franka::Frame::kEndEffector, current_state_);
         Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(current_state_->dq.data());
+        Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(current_state_.dq.data());
         Eigen::VectorXd::Map(&msg.velocity[0], 6) = jacobian * dq;
 
         publisher_->publish(msg);
@@ -78,6 +80,7 @@ namespace franka_control
                     robot_->control(
                         [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
                         {
+                            current_state_ = robot_state;
                             return controller_->dynamic_impedance_control(robot_state, period);
                         });
 
@@ -92,6 +95,7 @@ namespace franka_control
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
                     {
+                        current_state_ = robot_state;
                         return controller_->force_control_callback(robot_state, period);
                     },
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities
@@ -105,6 +109,7 @@ namespace franka_control
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities
                     {
+                        current_state_ = robot_state;
                         return controller_->LinearRelativeMotion(robot_state, period);
                     });
                 is_touched = false;

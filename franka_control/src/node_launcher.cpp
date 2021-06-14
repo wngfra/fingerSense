@@ -3,13 +3,9 @@
 #include <array>
 #include <memory>
 
-#include <franka/robot.h>
-
 #include <rclcpp/rclcpp.hpp>
 
-#include "franka_control/common.h"
 #include "franka_control/MotionControlServer.h"
-// #include "franka_control/TactileSubscriber.h"
 
 using namespace std::chrono_literals;
 
@@ -17,15 +13,10 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
 
-    auto robot = std::make_shared<franka::Robot>(argv[1], getRealtimeConfig());
-    RCLCPP_INFO(rclcpp::get_logger("Node_Launcher"), "Connected to robot@%s", argv[1]);
-
-    auto control_server_handler = std::make_shared<franka_control::MotionControlServer>(robot);
-    // auto tactile_subscriber = std::make_shared<franka_control::TactileSubscriber>(fp);
+    auto nh = std::make_shared<franka_control::MotionControlServer>(argv[1]);
     
     rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(control_server_handler);
-    // executor.add_node(tactile_subscriber);
+    executor.add_node(nh);
     executor.spin();
 
     rclcpp::shutdown();

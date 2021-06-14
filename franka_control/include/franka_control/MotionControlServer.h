@@ -7,13 +7,12 @@
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <rclcpp/rclcpp.hpp>
 
 #include <franka/exception.h>
 #include <franka/model.h>
 #include <franka/robot.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include "franka_control/common.h"
 #include "franka_control/MotionController.h"
 #include "franka_interfaces/msg/robot_state.hpp"
 #include "franka_interfaces/srv/sliding_control.hpp"
@@ -25,7 +24,7 @@ namespace franka_control
     class MotionControlServer : public rclcpp::Node
     {
     public:
-        MotionControlServer(std::shared_ptr<franka::Robot> robot);
+        MotionControlServer(char* robot_ip);
 
     private:
         void timer_callback();
@@ -43,8 +42,8 @@ namespace franka_control
 
         const std::array<double, 7> q_goal = {{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
 
-        std::shared_ptr<franka::Robot> robot_;
-        std::shared_ptr<franka::RobotState> current_state_;
+        franka::RobotState current_state_;
+        std::unique_ptr<franka::Robot> robot_;
         std::shared_ptr<franka::Model> model_;
         std::unique_ptr<MotionController> controller_;
     };
