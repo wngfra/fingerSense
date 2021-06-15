@@ -93,7 +93,7 @@ namespace franka_control
                 RCLCPP_INFO(this->get_logger(), "Touched the platform.");
 
                 controller_->set_initial_orientation(robot_->readOnce());
-                controller_->set_stiffness({{1000, 3000, 400, 300, 300, 300}}, damping_coefficient);  
+                controller_->set_stiffness({{800, 3000, 400, 300, 300, 300}}, damping_coefficient);  
             }
             else if (force > 0.0)
             {

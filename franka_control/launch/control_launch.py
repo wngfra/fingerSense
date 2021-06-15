@@ -9,7 +9,7 @@ def generate_launch_description():
         package='finger_sense',
         executable='commander',
         parameters=[
-            {'save_dir'  : './src/fingerSense/data/'},
+            {'save_dir'  : './src/fingerSense/data'},
             {'mode'      : 'train'}
         ],
         output='screen',

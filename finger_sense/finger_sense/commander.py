@@ -18,13 +18,14 @@ LATENT_DIM = 3
 STACK_SIZE = 32
 
 # train params
-MATERIAL = "GreyDenim"
+MATERIAL = "BlueDenim"
 DISTANCE = 0.25
 PARAMS = []
 for i in range(9):
     for j in range(9):
-        PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
-        PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
+        for _ in range(3):
+            PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
+            PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
 
 
@@ -66,6 +67,7 @@ class Commander(Node):
             self.count = 0
             self.initialized = False
             self.buffer = deque(maxlen=None)
+        self.stack = deque(maxlen=None)
 
         self.send_sliding_control_request(
             0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
@@ -81,6 +83,7 @@ class Commander(Node):
 
     def tactile_callback(self, msg):
         self.buffer.append(np.hstack([msg.data, self.robot_state]))
+        self.stack.append(msg.data)
 
     def timer_callback(self):
         success = False
@@ -95,52 +98,58 @@ class Commander(Node):
 
         nanoseconds = self.get_clock().now().nanoseconds
 
-        if success and self.mode == "train" and self.count < len(PARAMS):
-            force = PARAMS[self.count][0]
-            dy = PARAMS[self.count][1]
-            y = PARAMS[self.count][2]
-            self.send_sliding_control_request(
-                force, [0.0, y, 0.0], [0.0, dy, 0.0])
+        if success:
+            if self.mode == "train" and self.count < len(PARAMS):
+                force = PARAMS[self.count][0]
+                dy = PARAMS[self.count][1]
+                y = PARAMS[self.count][2]
+                self.send_sliding_control_request(
+                    force, [0.0, y, 0.0], [0.0, dy, 0.0])
 
-            # Save buffer
-            if control_type == 3:
-                basename = "{}_{:.1f}N_{:.3f}mmps_{}.npy".format(
-                    MATERIAL, 
-                    PARAMS[self.count-1][0], 
-                    PARAMS[self.count-1][1], 
-                    nanoseconds)
-                filename = os.path.join(self.save_dir, basename)
-                np.save(filename, self.buffer)
+                # Save buffer
+                if control_type == 3 and (self.count + 1) % 6 == 0:
+                    basename="{}_{:.1f}N_{:.3f}mmps_{}.npy".format(
+                        MATERIAL,
+                        PARAMS[self.count-1][0],
+                        abs(PARAMS[self.count-1][1]),
+                        nanoseconds)
+                    filename=os.path.join(self.save_dir, MATERIAL, basename)
+                    np.save(filename, self.buffer)
+                    self.buffer.clear()
+                    self.get_logger().info("Saved to file {}.".format(filename))
+
+                self.count += 1
+
+            # Save whole stack
+            elif self.mode == "train" and self.count >= len(PARAMS):
+                basename="{}_{}.npy".format(MATERIAL, nanoseconds)
+                filename=os.path.join(self.save_dir, MATERIAL, basename)
+                np.save(filename, self.stack)
                 self.get_logger().info("Saved to file {}.".format(filename))
-
-            self.count += 1
-            self.buffer.clear()
-            msg = String()
-            msg.data = "Motion command sent @ {}ns".format(nanoseconds)
-            self.pub.publish(msg)
+                self.destroy_node()
 
     def send_sliding_control_request(self, force, distance, speed):
         """
         Send parameter change request to control parameter server
         """
-        self.sliding_control_req.force = force
-        self.sliding_control_req.distance = distance
-        self.sliding_control_req.speed = speed
-        self.sliding_control_future = self.sliding_control_cli.call_async(
+        self.sliding_control_req.force=force
+        self.sliding_control_req.distance=distance
+        self.sliding_control_req.speed=speed
+        self.sliding_control_future=self.sliding_control_cli.call_async(
             self.sliding_control_req
         )
 
     def send_sensor_request(self, transition):
-        self.sensor_req.transition = transition
-        self.sensor_future = self.sensor_cli.call_async(self.sensor_req)
+        self.sensor_req.transition=transition
+        self.sensor_future=self.sensor_cli.call_async(self.sensor_req)
 
 
-def main(args=None):
+def main(args = None):
     time.sleep(2)
-    rclpy.init(args=args)
-    node = Commander()
+    rclpy.init(args = args)
+    node=Commander()
     rclpy.spin(node)
-    node.destroy_node()
+    # node.destroy_node()
     rclpy.shutdown()
 
 
