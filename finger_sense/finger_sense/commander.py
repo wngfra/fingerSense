@@ -18,15 +18,16 @@ LATENT_DIM = 3
 STACK_SIZE = 32
 
 # train params
-MATERIAL = "BlueDenim"
-DISTANCE = 0.25
+MATERIAL = "Velvet2Wool"
+DISTANCE = 0.18
 PARAMS = []
-for i in range(9):
-    for j in range(9):
-        for _ in range(3):
-            PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
-            PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
+for i in range(2):
+    for j in range(2):
+        for _ in range(2):
+            PARAMS.append((i*1.0+1.0, -j*0.005-0.01, -DISTANCE))
+            PARAMS.append((i*1.0+1.0, j*0.005+0.01, DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
+SAVE_COUNT = 4
 
 
 class Commander(Node):
@@ -107,7 +108,7 @@ class Commander(Node):
                     force, [0.0, y, 0.0], [0.0, dy, 0.0])
 
                 # Save buffer
-                if control_type == 3 and (self.count + 1) % 6 == 0:
+                if control_type == 3 and (self.count + 1) % SAVE_COUNT == 0:
                     basename="{}_{:.1f}N_{:.3f}mmps_{}.npy".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
