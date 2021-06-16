@@ -1,20 +1,28 @@
 # Copyright 2021 wngfra.
 # SPDX-License-Identifier: Apache-2.0
 
+import enum
+import numpy as np
 import matplotlib.pyplot as plt
-from torchvision.transforms.transforms import Pad
-from torch.utils.data import DataLoader
+import torch
+from torch.utils.data import DataLoader, dataloader
 from torchvision import transforms
 
-from collate_functions import PadSequence
+from utility import Normalize, PadSequence, ToFourierBasis
 from TacDataset import TacDataset
 
-device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+from scipy.spatial.distance import euclidean
+from fastdtw import fastdtw
 
-ds = TacDataset('../data', transform=None)
+device = torch.device(
+    'cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+
+transform = transforms.Compose([Normalize(axis=0)])
+ds = TacDataset('../data', transform=transform)
 train_loader = DataLoader(
-    ds, batch_size=32, collate_fn=PadSequence(), num_workers=6, pin_memory=True, shuffle=True)
+    ds, batch_size=16, collate_fn=PadSequence(), pin_memory=True, shuffle=True)
 
 if __name__ == '__main__':
-    for i, data in enumerate(train_loader):
-        print(data)
+    for i, (batch, lengths, labels) in enumerate(train_loader):
+        print(i)
+

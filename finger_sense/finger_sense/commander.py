@@ -18,16 +18,16 @@ LATENT_DIM = 3
 STACK_SIZE = 32
 
 # train params
-MATERIAL = "Velvet2Wool"
-DISTANCE = 0.18
+MATERIAL = "BlackDenim"
+DISTANCE = 0.25
 PARAMS = []
-for i in range(2):
-    for j in range(2):
-        for _ in range(2):
-            PARAMS.append((i*1.0+1.0, -j*0.005-0.01, -DISTANCE))
-            PARAMS.append((i*1.0+1.0, j*0.005+0.01, DISTANCE))
+for i in range(9):
+    for j in range(9):
+        for _ in range(3):
+            PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
+            PARAMS.append((i*0.5+1.0,  j*0.005+0.01,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
-SAVE_COUNT = 4
+SAVE_COUNT = 6
 
 
 class Commander(Node):
@@ -109,46 +109,45 @@ class Commander(Node):
 
                 # Save buffer
                 if control_type == 3 and (self.count + 1) % SAVE_COUNT == 0:
-                    basename="{}_{:.1f}N_{:.3f}mmps_{}.npy".format(
+                    basename = "{}_{:.1f}N_{:.3f}mmps_{}".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
                         abs(PARAMS[self.count-1][1]),
                         nanoseconds)
-                    filename=os.path.join(self.save_dir, MATERIAL, basename)
+                    filename = os.path.join(self.save_dir, MATERIAL, basename)
                     np.save(filename, self.buffer)
                     self.buffer.clear()
-                    self.get_logger().info("Saved to file {}.".format(filename))
+                    self.get_logger().info("Saved to file {}.npy".format(filename))
 
                 self.count += 1
 
             # Save whole stack
             elif self.mode == "train" and self.count >= len(PARAMS):
-                basename="{}_{}.npy".format(MATERIAL, nanoseconds)
-                filename=os.path.join(self.save_dir, MATERIAL, basename)
-                np.save(filename, self.stack)
-                self.get_logger().info("Saved to file {}.".format(filename))
-                self.destroy_node()
+                basename = "{}_{}".format(MATERIAL, nanoseconds)
+                filename = os.path.join(self.save_dir, MATERIAL, basename)
+                np.savez_compressed(filename, self.stack)
+                self.get_logger().info("Saved to file {}.npz".format(filename))
 
     def send_sliding_control_request(self, force, distance, speed):
         """
         Send parameter change request to control parameter server
         """
-        self.sliding_control_req.force=force
-        self.sliding_control_req.distance=distance
-        self.sliding_control_req.speed=speed
-        self.sliding_control_future=self.sliding_control_cli.call_async(
+        self.sliding_control_req.force = force
+        self.sliding_control_req.distance = distance
+        self.sliding_control_req.speed = speed
+        self.sliding_control_future = self.sliding_control_cli.call_async(
             self.sliding_control_req
         )
 
     def send_sensor_request(self, transition):
-        self.sensor_req.transition=transition
-        self.sensor_future=self.sensor_cli.call_async(self.sensor_req)
+        self.sensor_req.transition = transition
+        self.sensor_future = self.sensor_cli.call_async(self.sensor_req)
 
 
-def main(args = None):
+def main(args=None):
     time.sleep(2)
-    rclpy.init(args = args)
-    node=Commander()
+    rclpy.init(args=args)
+    node = Commander()
     rclpy.spin(node)
     # node.destroy_node()
     rclpy.shutdown()
