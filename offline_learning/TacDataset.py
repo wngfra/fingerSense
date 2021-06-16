@@ -38,8 +38,8 @@ class TacDataset(Dataset):
             namegroups = basename.split('_')
 
             self.texture_names.append(namegroups[0])
-            self.params[i] = (re.search(r"\d+.\d+", namegroups[1]).group(0),
-                              re.search(r"\d+.\d+", namegroups[2]).group(0))
+            self.params[i] = (float(re.search(r"\d+.\d+", namegroups[1]).group(0)),
+                              float(re.search(r"\d+.\d+", namegroups[2]).group(0)))
         self.textures = Texture(self.texture_names)
 
     def __len__(self):
@@ -52,7 +52,7 @@ class TacDataset(Dataset):
         texture_name = self.texture_names[index]
         if self.transform:
             tacdata = self.transform(tacdata)
-        return tacdata, self.textures.get_id(texture_name)
+        return tacdata, self.textures.get_id(texture_name), self.params[index]
 
-    def get_info(self, index):
-        return self.texture_names[index], self.params[index]
+    def get_texture_name(self, texture_id):
+        return self.textures.get_name(texture_id)

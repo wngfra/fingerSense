@@ -34,4 +34,5 @@
 
 # Python
 **/__pycache__
-*.pyc
+**/*.pyc
+**/.ipynb_checkpoints
