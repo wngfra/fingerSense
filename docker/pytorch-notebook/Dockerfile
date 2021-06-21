@@ -11,14 +11,19 @@ FROM $BASE_IMAGE
 # Do all this in a single RUN command to avoid duplicating all of the
 # files across image layers when the permissions change
 RUN conda install -c conda-forge --quiet --yes \
-    'notebook=6.4.0' \
-    'jupyterhub=1.4.1' \
-    'jupyterlab=3.0.16' && \
+    notebook \
+    jupyterhub \
+    jupyterlab && \
     conda clean --all -f -y && \
     npm cache clean --force && \
     jupyter notebook --generate-config && \
     jupyter lab clean
 
+RUN pip3 install --no-cache-dir --yes \
+    bidict \
+    matplotlib \
+    scikit-fda
+
 EXPOSE 8888
 
-WORKDIR "${HOME}"
+WORKDIR "{HOME}"
