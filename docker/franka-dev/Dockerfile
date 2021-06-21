@@ -18,8 +18,7 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     libqt5svg5-dev \
     libqt5websockets5-dev \
     libqt5opengl5-dev \
-    libqt5x11extras5-dev \
-    ros-$ROS_DISTRO-gazebo-ros-pkgs
+    libqt5x11extras5-dev
 RUN rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
