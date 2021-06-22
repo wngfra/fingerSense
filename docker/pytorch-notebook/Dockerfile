@@ -19,10 +19,11 @@ RUN conda install -c conda-forge --quiet --yes \
     jupyter notebook --generate-config && \
     jupyter lab clean
 
-RUN pip3 install --no-cache-dir --yes \
+RUN pip3 install --no-cache-dir \
     bidict \
     matplotlib \
-    scikit-fda
+    scikit-fda \
+    tensorly
 
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
 ENV TINI_VERSION v0.19.0
@@ -33,3 +34,4 @@ EXPOSE 8888
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--allow-root"]
+
