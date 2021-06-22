@@ -4,43 +4,36 @@
 ARG FROM_IMAGE=nvcr.io/nvidia/cuda:11.0-devel-ubuntu20.04
 FROM $FROM_IMAGE
 
-# setup timezone
-RUN echo 'Etc/UTC' > /etc/timezone && \
-    ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    apt-get update && \
-    apt-get install -q -y --no-install-recommends tzdata && \
-    rm -rf /var/lib/apt/lists/*
+# setup locales
+RUN apt-get update && \
+    apt-get install -q -y --no-install-recommends locales software-properties-common && \
+    locale-gen en_US en_US.UTF-8 && \
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
 
 # install packages
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    build-essential \
-    dirmngr \
-    gnupg2 \
-	&& rm -rf /var/lib/apt/lists/*
+RUN add-apt-repository universe && \
+    apt-get update && apt-get install -q -y --no-install-recommends \
+    curl \
+    git \
+    gnupg \
+    lsb-release
 
-# setup keys
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
-
-# setup sources.list
-RUN echo "deb http://packages.ros.org/ros2/ubuntu focal main" > /etc/apt/sources.list.d/ros2-latest.list
-
-# setup environment
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
+# setup keys and sources.list
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # Configure environment variables
-ARG ROS_DISTRO=foxy
+ARG ROS_DISTRO=galactic
 ENV ROS_DISTRO=$ROS_DISTRO
 ENV ROS_VERSION=2 \
     ROS_PYTHON_VERSION=3
 
-# label ros2 packages
-LABEL org.osrfoundation.ros-foxy-desktop.sha256=ea087f425f8c087d943b6ad98fe52368127ec919bddb7410ab11842bfdf0c1be
-
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-foxy-desktop=0.9.2-1* \
-    ros-foxy-launch* \
-    && rm -rf /var/lib/apt/lists/*
+    ros-${ROS_VERSION}-desktop && \
+    rm -rf /var/lib/apt/lists/*
 
 CMD ["bash"]

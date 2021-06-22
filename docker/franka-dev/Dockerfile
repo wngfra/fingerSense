@@ -6,19 +6,19 @@ FROM $FROM_IMAGE
 
 # Install packages
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    git \
     libeigen3-dev \
     libpoco-dev \
+    libqt5svg5-dev \
+    libqt5websockets5-dev \
+    libqt5opengl5-dev \
+    libqt5x11extras5-dev \
     python3-colcon-common-extensions \
     python3-dev \
     python3-matplotlib \
     python3-pip \
     python3-tk \
-    qtbase5-dev \
-    libqt5svg5-dev \
-    libqt5websockets5-dev \
-    libqt5opengl5-dev \
-    libqt5x11extras5-dev
+    qtbase5-dev
+    
 RUN rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install -U\
@@ -30,15 +30,8 @@ RUN pip3 install -U\
     scikit-fda \
     scikit-learn \
     scipy \
-    tensorly
-RUN pip3 install --upgrade jax jaxlib==0.1.61+cuda110 -f https://storage.googleapis.com/jax-releases/jax_releases.html
-RUN pip3 install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
-
-# Download, build and install mayavi
-RUN git clone https://github.com/enthought/mayavi.git /usr/src/mayavi
-WORKDIR /usr/src/mayavi
-RUN pip3 install -r requirements.txt \
-    && python3 setup.py install
+    tensorly \
+    jax jaxlib==0.1.67+cuda111 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 # Download, build and install libfranka
 RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
