@@ -1,14 +1,15 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
-ARG FROM_IMAGE=nvcr.io/nvidia/cuda:11.0-devel-ubuntu20.04
+ARG FROM_IMAGE=nvcr.io/nvidia/cuda:11.1-runtime-ubuntu20.04
 FROM $FROM_IMAGE
 
-# setup locales
-RUN apt-get update && \
-    apt-get install -q -y --no-install-recommends locales software-properties-common && \
-    locale-gen en_US en_US.UTF-8 && \
-    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+# setup timezone
+RUN echo 'Etc/UTC' > /etc/timezone && \
+    ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+    apt-get update && \
+    apt-get install -q -y --no-install-recommends tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
