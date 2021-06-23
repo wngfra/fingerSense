@@ -28,11 +28,11 @@ git clone --recursive https://github.com/wngfra/fingerSense.git ~/ros2_ws/src/fi
 ```
 2. Create a development container using
 ```bash
-docker run -it --tty --gpus all --user ubuntu --name fingerSense -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws wngfra/ros2cuda:franka-dev
+docker run -it --tty --gpus all --user ubuntu --name fingerSense -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws wngfra/ros2cuda:base
 ```
-3. Create a deployment container with
+3. Create a deployment container with GUI support
 ```bash
-docker run -it --tty --device /dev/dri --gpus all --user ubuntu --name fingerSense_gui -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws -v /tmp/.X11-unix:/tmp/.X11-unix:rw --net=host -e DISPLAY=$DISPLAY -e XAUTHORITY -e NVIDIA_DRIVER_CAPABILITIES=all wngfra/ros2cuda:franka-dev
+docker run -it --tty --device /dev/dri --gpus all --user ubuntu --name fingerSense_gui -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws -v /tmp/.X11-unix:/tmp/.X11-unix:rw --net=host -e DISPLAY=$DISPLAY -e XAUTHORITY -e NVIDIA_DRIVER_CAPABILITIES=all wngfra/ros2cuda:base
 ```
 4. Build the packages in the container & source the env
 ```bash

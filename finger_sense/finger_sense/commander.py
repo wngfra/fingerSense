@@ -1,10 +1,12 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
+from typing import final
 import numpy as np
 import os
 import rclpy
 import time
 from collections import deque
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
 
@@ -15,19 +17,17 @@ from tactile_interfaces.srv import ChangeState
 
 
 LATENT_DIM = 3
-STACK_SIZE = 32
 
 # train params
-MATERIAL = "BlackDenim"
+MATERIAL = "BlackWool"
 DISTANCE = 0.25
 PARAMS = []
 for i in range(9):
     for j in range(9):
         for _ in range(3):
-            PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
-            PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
+            PARAMS.append((i*1.0+5.0, -j*0.002-0.01, -DISTANCE))
+            PARAMS.append((i*1.0+5.0,  j*0.002+0.01,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
-SAVE_COUNT = 6
 
 
 class Commander(Node):
@@ -37,8 +37,8 @@ class Commander(Node):
         self.declare_parameters(
             namespace="",
             parameters=[
-                ("save_dir", None),
-                ("mode", None),
+                ("save_dir", ''),
+                ("mode", ''),
             ],
         )
         self.get_params()
@@ -67,8 +67,7 @@ class Commander(Node):
         if self.mode == "train":
             self.count = 0
             self.initialized = False
-            self.buffer = deque(maxlen=None)
-        self.stack = deque(maxlen=None)
+        self.buffer = deque(maxlen=None)
 
         self.send_sliding_control_request(
             0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
@@ -80,11 +79,9 @@ class Commander(Node):
     def robot_state_callback(self, msg):
         states = [msg.position, msg.orientation,
                   msg.velocity, msg.external_wrench]
-        self.robot_state = np.hstack(states)
 
     def tactile_callback(self, msg):
         self.buffer.append(np.hstack([msg.data, self.robot_state]))
-        self.stack.append(msg.data)
 
     def timer_callback(self):
         success = False
@@ -101,32 +98,25 @@ class Commander(Node):
 
         if success:
             if self.mode == "train" and self.count < len(PARAMS):
-                force = PARAMS[self.count][0]
-                dy = PARAMS[self.count][1]
-                y = PARAMS[self.count][2]
-                self.send_sliding_control_request(
-                    force, [0.0, y, 0.0], [0.0, dy, 0.0])
-
                 # Save buffer
-                if control_type == 3 and (self.count + 1) % SAVE_COUNT == 0:
+                if control_type == 3:
                     basename = "{}_{:.1f}N_{:.3f}mmps_{}".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
                         abs(PARAMS[self.count-1][1]),
                         nanoseconds)
-                    filename = os.path.join(self.save_dir, MATERIAL, basename)
+                    filename = os.path.join(self.save_dir, basename)
                     np.save(filename, self.buffer)
                     self.buffer.clear()
                     self.get_logger().info("Saved to file {}.npy".format(filename))
 
+                force = PARAMS[self.count][0]
+                dy = PARAMS[self.count][1]
+                y = PARAMS[self.count][2]
+                self.send_sliding_control_request(
+                    force, [0.0, y, 0.0], [0.0, dy, 0.0])
+                    
                 self.count += 1
-
-            # Save whole stack
-            elif self.mode == "train" and self.count >= len(PARAMS):
-                basename = "{}_{}".format(MATERIAL, nanoseconds)
-                filename = os.path.join(self.save_dir, MATERIAL, basename)
-                np.savez_compressed(filename, self.stack)
-                self.get_logger().info("Saved to file {}.npz".format(filename))
 
     def send_sliding_control_request(self, force, distance, speed):
         """
@@ -145,11 +135,16 @@ class Commander(Node):
 
 
 def main(args=None):
-    time.sleep(2)
+    time.sleep(3)
     rclpy.init(args=args)
     node = Commander()
-    rclpy.spin(node)
-    # node.destroy_node()
+    executor = MultiThreadedExecutor(num_threads=3)
+    executor.add_node(node)
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        node.destroy_node()
     rclpy.shutdown()
 
 
