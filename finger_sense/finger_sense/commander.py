@@ -19,7 +19,7 @@ from tactile_interfaces.srv import ChangeState
 LATENT_DIM = 3
 
 # train params
-MATERIAL = "BlackWool"
+MATERIAL = "GreenVelvet"
 DISTANCE = 0.25
 PARAMS = []
 for i in range(9):
