@@ -21,13 +21,13 @@ STACK_SIZE = 32
 MATERIAL = "Velvet2Wool"
 DISTANCE = 0.18
 PARAMS = []
-for i in range(2):
-    for j in range(2):
-        for _ in range(2):
-            PARAMS.append((i*1.0+1.0, -j*0.005-0.01, -DISTANCE))
-            PARAMS.append((i*1.0+1.0, j*0.005+0.01, DISTANCE))
+for i in range(9):
+    for j in range(9):
+        for _ in range(3):
+            PARAMS.append((i*0.5+1.0, -j*0.005-0.01, -DISTANCE))
+            PARAMS.append((i*0.5+1.0, j*0.005+0.01, DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
-SAVE_COUNT = 4
+SAVE_COUNT = 6
 
 
 class Commander(Node):
