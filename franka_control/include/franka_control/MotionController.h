@@ -20,7 +20,7 @@ namespace franka_control
     class MotionController
     {
     public:
-        MotionController(const std::shared_ptr<franka::Model>);
+        MotionController(const std::shared_ptr<franka::Model>, const std::shared_ptr<RobotStateMsg> rsm);
         // ~MotionController();
 
         void set_initial_orientation(const franka::RobotState &robot_state);
@@ -33,6 +33,7 @@ namespace franka_control
 
     private:
         std::shared_ptr<franka::Model> model_ptr_;
+        std::shared_ptr<RobotStateMsg> rsm_;
 
         Eigen::MatrixXd stiffness_, damping_;
         Eigen::Affine3d initial_transform_;

@@ -77,8 +77,7 @@ class Commander(Node):
         self.mode = str(self.get_parameter("mode").value)
 
     def robot_state_callback(self, msg):
-        states = [msg.position, msg.orientation,
-                  msg.velocity, msg.external_wrench]
+        self.robot_state = np.hstack([msg.position, msg.external_wrench])
 
     def tactile_callback(self, msg):
         self.buffer.append(np.hstack([msg.data, self.robot_state]))
@@ -100,7 +99,7 @@ class Commander(Node):
             if self.mode == "train" and self.count < len(PARAMS):
                 # Save buffer
                 if control_type == 3:
-                    basename = "{}_{:.1f}N_{:.3f}mmps_{}".format(
+                    basename = "{}_{:.1f}N_{:.2f}mps_{}".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
                         abs(PARAMS[self.count-1][1]),
@@ -115,7 +114,7 @@ class Commander(Node):
                 y = PARAMS[self.count][2]
                 self.send_sliding_control_request(
                     force, [0.0, y, 0.0], [0.0, dy, 0.0])
-                    
+
                 self.count += 1
 
     def send_sliding_control_request(self, force, distance, speed):

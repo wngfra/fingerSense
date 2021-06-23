@@ -8,14 +8,15 @@
 
 #include "franka_control/MotionController.h"
 
-#define RATIO 0.2
+#define RATIO 0.3
 
 namespace franka_control
 {
 
-    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr)
+    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr, const std::shared_ptr<RobotStateMsg> rsm)
     {
         model_ptr_ = model_ptr;
+        rsm_ = rsm;
     }
 
     void MotionController::set_initial_orientation(const franka::RobotState &robot_state)
@@ -151,6 +152,9 @@ namespace franka_control
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
+        Eigen::VectorXd::Map(&rsm_->position[0], 3) = position;
+        rsm_->external_wrench = robot_state.O_F_ext_hat_K;
+
         return tau_d_array;
     }
 
@@ -216,6 +220,9 @@ namespace franka_control
         {
             position_d_[2] -= 5e-5;
         }
+
+        Eigen::VectorXd::Map(&rsm_->position[0], 3) = position;
+        rsm_->external_wrench = robot_state.O_F_ext_hat_K;
 
         return output;
     }

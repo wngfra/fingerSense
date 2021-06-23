@@ -14,6 +14,11 @@
  * Contains common types and functions.
  */
 
+struct RobotStateMsg {
+    std::array<double, 3> position;
+    std::array<double, 6> external_wrench;
+};
+
 /**
  * Gets a real-time configuration based on linux kernel version
  *
