@@ -19,6 +19,7 @@ ENV LC_ALL en_US.UTF-8
 
 # install packages
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
+    build-essential \
     curl \
     git \
     gnupg \
@@ -37,7 +38,32 @@ ENV ROS_VERSION=2 \
 
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-$ROS_DISTRO-desktop && \
+    ros-${ROS_DISTRO}-desktop \
+    libeigen3-dev \
+    libpoco-dev \
+    python3-dev \
+    python3-pip && \
     rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install -U\
+    argcomplete \
+    colcon-common-extensions \
+    pytest-rerunfailures
+
+# Download, build and install libfranka
+RUN git clone --recursive https://github.com/frankaemika/libfranka.git /usr/src/libfranka
+WORKDIR /usr/src/libfranka/build
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF .. \
+    && make \
+    && make install
+
+# Create a non-root user
+RUN useradd -rm -d /ubuntu -s /bin/bash -u 1000 ubuntu \
+    && echo 'source "/opt/ros/$ROS_DISTRO/setup.bash"' >> /ubuntu/.bashrc \
+    && echo 'export XLA_PYTHON_CLIENT_MEM_FRACTION=.60' >> /ubuntu/.bashrc
+
+# Change default user
+WORKDIR /ubuntu/ros2_ws
+USER ubuntu
 
 CMD ["bash"]
