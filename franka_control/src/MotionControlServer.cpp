@@ -80,9 +80,7 @@ namespace franka_control
                     });
 
                 RCLCPP_INFO(this->get_logger(), "Touched the platform.");
-
-                controller_->set_initial_orientation(robot_->readOnce());
-                controller_->set_stiffness({{3500, 3500, 400, 300, 300, 300}}, damping_coefficient);
+                controller_->set_stiffness({{4000, 4000, 400, 300, 300, 300}}, damping_coefficient);
             }
             else if (force > 0.0)
             {
@@ -92,10 +90,6 @@ namespace franka_control
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
                     {
                         return controller_->force_control_callback(robot_state, period);
-                    },
-                    [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::CartesianVelocities
-                    {
-                        return controller_->LinearRelativeMotion(robot_state, period);
                     });
             }
 
