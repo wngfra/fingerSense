@@ -16,10 +16,8 @@ from tactile_interfaces.msg import TactileSignal
 from tactile_interfaces.srv import ChangeState
 
 
-LATENT_DIM = 3
-
 # train params
-MATERIAL = "BrownCotton"
+MATERIAL = "BeigeCanvas"
 DISTANCE = 0.25
 PARAMS = []
 for i in range(3):
@@ -80,7 +78,8 @@ class Commander(Node):
         self.robot_state = np.hstack([msg.position, msg.external_wrench])
 
     def tactile_callback(self, msg):
-        self.buffer.append(np.hstack([msg.data, self.robot_state]))
+        # self.buffer.append(np.hstack([msg.data, self.robot_state]))
+        self.buffer.append(msg.data)
 
     def timer_callback(self):
         success = False
