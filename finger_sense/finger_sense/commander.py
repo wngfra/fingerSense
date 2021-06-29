@@ -19,7 +19,7 @@ from tactile_interfaces.srv import ChangeState
 LATENT_DIM = 3
 
 # train params
-MATERIAL = "GreenVelvet"
+MATERIAL = "BrownCotton"
 DISTANCE = 0.25
 PARAMS = []
 for i in range(3):
@@ -106,9 +106,9 @@ class Commander(Node):
                         nanoseconds)
                     filename = os.path.join(self.save_dir, basename)
                     np.save(filename, self.buffer)
-                    self.buffer.clear()
                     self.get_logger().info("Saved to file {}.npy".format(filename))
 
+                self.buffer.clear()
                 force = PARAMS[self.count][0]
                 dy = PARAMS[self.count][1]
                 y = PARAMS[self.count][2]
