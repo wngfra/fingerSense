@@ -18,7 +18,7 @@ namespace franka_control
 
         model_ = std::make_shared<franka::Model>(robot_->loadModel());
         rsm_ = std::make_shared<RobotStateMsg>();
-        controller_ = std::make_unique<MotionController>(model_, rsm_);
+        controller_ = std::make_unique<MotionController>(model_);
 
         try
         {
@@ -44,7 +44,7 @@ namespace franka_control
 
         msg.position = rsm_->position;
         msg.external_wrench = rsm_->external_wrench;
-        
+
         publisher_->publish(msg);
     }
 
@@ -75,7 +75,7 @@ namespace franka_control
                 controller_->set_stiffness({{1000, 1000, 200, 300, 300, 300}}, damping_coefficient);
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
-                    {   
+                    {
                         return controller_->dynamic_impedance_control(robot_state, period);
                     });
 
@@ -89,6 +89,9 @@ namespace franka_control
                 robot_->control(
                     [&](const franka::RobotState &robot_state, franka::Duration period) -> franka::Torques
                     {
+                        std::array<double, 16> pose(robot_state.O_T_EE);
+                        rsm_->position = {{pose[12], pose[13], pose[14]}};
+                        rsm_->external_wrench = robot_state.O_F_ext_hat_K;
                         return controller_->force_control_callback(robot_state, period);
                     });
             }

@@ -20,7 +20,7 @@ namespace franka_control
     class MotionController
     {
     public:
-        MotionController(const std::shared_ptr<franka::Model>, const std::shared_ptr<RobotStateMsg> rsm);
+        MotionController(const std::shared_ptr<franka::Model>);
         // ~MotionController();
 
         void set_stiffness(const std::array<double, 6> &, const std::array<double, 6> &);
@@ -31,7 +31,6 @@ namespace franka_control
 
     private:
         std::shared_ptr<franka::Model> model_ptr_;
-        std::shared_ptr<RobotStateMsg> rsm_;
 
         Eigen::MatrixXd stiffness_, damping_;
         Eigen::Affine3d initial_transform_;
@@ -41,14 +40,14 @@ namespace franka_control
         franka::RobotState initial_state_;
 
         std::array<double, 3> x_max_, dx_max_, dx_, time_max_;
-        std::array<bool, 3> is_finished;
+        bool is_finished;
 
         double target_force_, time_, desired_force_;
         double force_error_integral_, prev_force_error_;
 
         const double FILTER_GAIN{0.2};
-        const double K_P{1e-6};
-        const double K_I = 0.01 * K_P * K_P;
+        const double K_P{1e-5};
+        const double K_I = 0.015 * K_P * K_P;
         const double K_D = 0.55 * K_P;
     };
 } // namespace franka_control

@@ -8,13 +8,14 @@
 
 #include "franka_control/MotionController.h"
 
+#define D_PI 2 * M_PI
+
 namespace franka_control
 {
 
-    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr, const std::shared_ptr<RobotStateMsg> rsm)
+    MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr)
     {
         model_ptr_ = model_ptr;
-        rsm_ = rsm;
     }
 
     void MotionController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const std::array<double, 6> &damping_coefficient)
@@ -63,7 +64,7 @@ namespace franka_control
         {
             initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
-            is_finished.fill(false);
+            is_finished = false;
 
             // initialize controller variables
             dx_.fill(0.0);
@@ -84,19 +85,17 @@ namespace franka_control
         Eigen::Quaterniond orientation(transform.linear());
 
         // compute error to desired equilibrium pose
-        for (int i = 0; i < 2; ++i)
+        if (time_ < time_max_[1])
         {
-            if (time_ < time_max_[i])
-            {
-                position_d_[i] += dx_max_[i] * period.toSec();
-            }
-            else
-            {
-                position_d_[i] = initial_transform_.translation()[i] + x_max_[i];
-                is_finished[i] = true;
-            }
+            position_d_[0] = initial_transform_.translation()[0] + 0.01 * std::sin(4 * D_PI / time_max_[1] * time_);
+            position_d_[1] += dx_max_[1] * period.toSec();
         }
-        
+        else
+        {
+            position_d_[1] = initial_transform_.translation()[1] + x_max_[1];
+            is_finished = true;
+        }
+
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         // compute force error using the robot wrench sensors
         double force_error = desired_force_ + robot_state.O_F_ext_hat_K[2] - initial_state_.O_F_ext_hat_K[2];
@@ -128,11 +127,8 @@ namespace franka_control
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-        Eigen::VectorXd::Map(&rsm_->position[0], 3) = position;
-        rsm_->external_wrench = robot_state.O_F_ext_hat_K;
-
         franka::Torques output(tau_d_array);
-        if (is_finished[0] && is_finished[1])
+        if (is_finished)
         {
             output.motion_finished = true;
             time_ = 0.0;
@@ -197,9 +193,6 @@ namespace franka_control
         {
             position_d_[2] -= 6e-5;
         }
-
-        Eigen::VectorXd::Map(&rsm_->position[0], 3) = position;
-        rsm_->external_wrench = robot_state.O_F_ext_hat_K;
 
         return output;
     }
