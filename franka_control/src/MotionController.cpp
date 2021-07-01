@@ -96,7 +96,7 @@ namespace franka_control
                 is_finished[i] = true;
             }
         }
-
+        
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         // compute force error using the robot wrench sensors
         double force_error = desired_force_ + robot_state.O_F_ext_hat_K[2] - initial_state_.O_F_ext_hat_K[2];

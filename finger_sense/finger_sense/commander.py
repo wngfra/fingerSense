@@ -17,14 +17,14 @@ from tactile_interfaces.srv import ChangeState
 
 
 # train params
-MATERIAL = "BeigeCanvas"
-DISTANCE = 0.25
+MATERIAL = "GreenVelvet"
+DISTANCE = 0.05
 PARAMS = []
 for i in range(3):
     for j in range(3):
         for _ in range(1):
-            PARAMS.append((i*1.0+5.0, -j*0.002-0.01, -DISTANCE))
-            PARAMS.append((i*1.0+5.0,  j*0.002+0.01,  DISTANCE))
+            PARAMS.append((i*1.0+5.0, -j*0.001-0.001, -DISTANCE))
+            PARAMS.append((i*1.0+5.0,  j*0.001+0.001,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
 
 
@@ -78,7 +78,6 @@ class Commander(Node):
         self.robot_state = np.hstack([msg.position, msg.external_wrench])
 
     def tactile_callback(self, msg):
-        # self.buffer.append(np.hstack([msg.data, self.robot_state]))
         self.buffer.append(msg.data)
 
     def timer_callback(self):
@@ -98,7 +97,7 @@ class Commander(Node):
             if self.mode == "train" and self.count < len(PARAMS):
                 # Save buffer
                 if control_type == 3:
-                    basename = "{}_{:.1f}N_{:.2f}mps_{}".format(
+                    basename = "{}_{:.1f}N_{:.3f}mps_{}".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
                         abs(PARAMS[self.count-1][1]),
