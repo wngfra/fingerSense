@@ -17,8 +17,8 @@ from tactile_interfaces.srv import ChangeState
 
 
 # train params
-MATERIAL = "BlueDenim"
-DISTANCE = 0.02
+MATERIAL = "BlackDenim"
+DISTANCE = 0.05
 PARAMS = []
 for i in range(3):
     for j in range(3):
@@ -100,7 +100,7 @@ class Commander(Node):
                     basename = "{}_{:.1f}N_{:.3f}mps_{}".format(
                         MATERIAL,
                         PARAMS[self.count-1][0],
-                        abs(PARAMS[self.count-1][1]),
+                        PARAMS[self.count-1][1],
                         nanoseconds)
                     filename = os.path.join(self.save_dir, basename)
                     np.save(filename, self.buffer)
