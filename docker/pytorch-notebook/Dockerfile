@@ -13,7 +13,8 @@ FROM $BASE_IMAGE
 RUN conda install -c conda-forge --quiet --yes \
     notebook \
     jupyterhub \
-    jupyterlab && \
+    jupyterlab \
+    jupyterthemes && \
     conda clean --all -f -y && \
     npm cache clean --force && \
     jupyter notebook --generate-config && \
