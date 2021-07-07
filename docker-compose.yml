@@ -1,7 +1,6 @@
 services:
   jupyter-notebook:
-      image: wngfra/ros2cuda:pytorch-notebook
-    command: nvidia-smi
+    image: wngfra/ros2cuda:pytorch-notebook
     ports:
         - 8888:8888
     volumes:
