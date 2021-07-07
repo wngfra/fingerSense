@@ -1,0 +1,16 @@
+services:
+  jupyter-notebook:
+      image: wngfra/ros2cuda:pytorch-notebook
+    command: nvidia-smi
+    ports:
+        - 8888:8888
+    volumes:
+      - ../fingerSense:/workspace/fingerSense
+    container_name: pytorch-notebook-container
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu, utility]
