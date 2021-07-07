@@ -23,11 +23,9 @@ namespace franka_control
         MotionController(const std::shared_ptr<franka::Model>);
         // ~MotionController();
 
-        void set_initial_orientation(const franka::RobotState &robot_state);
         void set_stiffness(const std::array<double, 6> &, const std::array<double, 6> &);
         void set_parameter(const double, const std::array<double, 3> &, const std::array<double, 3> &);
 
-        franka::CartesianVelocities LinearRelativeMotion(const franka::RobotState &, franka::Duration);
         franka::Torques force_control_callback(const franka::RobotState &, franka::Duration);
         franka::Torques dynamic_impedance_control(const franka::RobotState &, franka::Duration);
 
@@ -38,18 +36,18 @@ namespace franka_control
         Eigen::Affine3d initial_transform_;
         Eigen::Vector3d position_d_;
         Eigen::Quaterniond orientation_d_;
-        Eigen::VectorXd initial_tau_ext_;
 
         franka::RobotState initial_state_;
 
-        std::array<double, 3> x_max_, dx_max_, dx_, sgn_, omega_, accel_time_, const_v_time_, time_max_;
+        std::array<double, 3> x_max_, dx_max_, dx_, time_max_;
+        bool is_finished;
 
         double target_force_, time_, desired_force_;
         double force_error_integral_, prev_force_error_;
 
         const double FILTER_GAIN{0.2};
-        const double K_P{2.5e-3};
-        const double K_I = 0.01 * K_P * K_P;
+        const double K_P{1e-5};
+        const double K_I = 0.015 * K_P * K_P;
         const double K_D = 0.55 * K_P;
     };
 } // namespace franka_control

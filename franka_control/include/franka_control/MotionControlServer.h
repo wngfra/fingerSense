@@ -13,6 +13,7 @@
 #include <franka/robot.h>
 #include <rclcpp/rclcpp.hpp>
 
+#include "franka_control/common.h"
 #include "franka_control/MotionController.h"
 #include "franka_interfaces/msg/robot_state.hpp"
 #include "franka_interfaces/srv/sliding_control.hpp"
@@ -41,7 +42,7 @@ namespace franka_control
 
         const std::array<double, 7> q_goal = {{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
 
-        franka::RobotState current_state_;
+        std::shared_ptr<RobotStateMsg> rsm_;
         std::unique_ptr<franka::Robot> robot_;
         std::shared_ptr<franka::Model> model_;
         std::unique_ptr<MotionController> controller_;

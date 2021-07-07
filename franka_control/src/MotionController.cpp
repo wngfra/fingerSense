@@ -8,7 +8,7 @@
 
 #include "franka_control/MotionController.h"
 
-#define RATIO 0.2
+#define D_PI 2 * M_PI
 
 namespace franka_control
 {
@@ -16,13 +16,6 @@ namespace franka_control
     MotionController::MotionController(const std::shared_ptr<franka::Model> model_ptr)
     {
         model_ptr_ = model_ptr;
-    }
-
-    void MotionController::set_initial_orientation(const franka::RobotState &robot_state)
-    {
-        initial_state_ = robot_state;
-        initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_c.data());
-        orientation_d_ = initial_transform_.linear();
     }
 
     void MotionController::set_stiffness(const std::array<double, 6> &stiffness_coefficient, const std::array<double, 6> &damping_coefficient)
@@ -50,29 +43,28 @@ namespace franka_control
 
         for (int i = 0; i < 3; ++i)
         {
-            if (x_max_[i] != 0.0)
+            if (dx_max_[i] != 0.0)
             {
-                double accx = RATIO * x_max_[i];
-                sgn_[i] = x_max_[i] / std::abs(x_max_[i]);
-                omega_[i] = 2.0 * M_PI * dx_max_[i] / x_max_[i];
-                accel_time_[i] = M_PI / omega_[i];
-                const_v_time_[i] = ((std::abs(x_max_[i]) - 2 * accx) / std::abs(dx_max_[i]));
-                time_max_[i] = 2.0 * M_PI / omega_[i];
+                time_max_[i] = x_max_[i] / dx_max_[i];
+            }
+            else
+            {
+                time_max_[i] = 0.0;
             }
         }
 
         time_ = 0.0;
     }
 
-    franka::CartesianVelocities MotionController::LinearRelativeMotion(const franka::RobotState &robot_state, franka::Duration period)
+    franka::Torques MotionController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
     {
         time_ += period.toSec();
 
         if (time_ == 0.0)
         {
-            initial_state_ = robot_state;
-            initial_transform_ = Eigen::Matrix4d::Map(initial_state_.O_T_EE_c.data());
+            initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
+            is_finished = false;
 
             // initialize controller variables
             dx_.fill(0.0);
@@ -80,28 +72,7 @@ namespace franka_control
             force_error_integral_ = 0.0;
             prev_force_error_ = 0.0;
         }
-        for (int i = 0; i < 3; i++)
-        {
-            if (x_max_[i] != 0.0 && time_ <= time_max_[i])
-            {
 
-                dx_[i] = dx_max_[i] + dx_max_[i] * std::sin(omega_[i] * time_ - M_PI_2);
-            }
-        }
-
-        franka::CartesianVelocities output = {{dx_[0], dx_[1], dx_[2], 0.0, 0.0, 0.0}};
-
-        if (time_ > *std::max_element(time_max_.begin(), time_max_.end()))
-        {
-            output.motion_finished = true;
-            time_ = 0.0;
-        }
-
-        return output;
-    }
-
-    franka::Torques MotionController::force_control_callback(const franka::RobotState &robot_state, franka::Duration period)
-    {
         // get state variables
         std::array<double, 7> coriolis_array = model_ptr_->coriolis(robot_state);
         std::array<double, 42> jacobian_array = model_ptr_->zeroJacobian(franka::Frame::kEndEffector, robot_state);
@@ -114,15 +85,20 @@ namespace franka_control
         Eigen::Quaterniond orientation(transform.linear());
 
         // compute error to desired equilibrium pose
-        // position error
-        std::array<double, 16> pose_d(robot_state.O_T_EE_d);
-        position_d_[0] = pose_d[12];
-        position_d_[1] = pose_d[13];
-        position_d_[2] = pose_d[14];
+        if (time_ < time_max_[1])
+        {
+            position_d_[0] = initial_transform_.translation()[0] + 0.01 * std::sin(4 * D_PI / time_max_[1] * time_);
+            position_d_[1] += dx_max_[1] * period.toSec();
+        }
+        else
+        {
+            position_d_[1] = initial_transform_.translation()[1] + x_max_[1];
+            is_finished = true;
+        }
 
         desired_force_ = FILTER_GAIN * desired_force_ + (1 - FILTER_GAIN) * target_force_;
         // compute force error using the robot wrench sensors
-        double force_error = desired_force_ + robot_state.O_F_ext_hat_K[2];
+        double force_error = desired_force_ + robot_state.O_F_ext_hat_K[2] - initial_state_.O_F_ext_hat_K[2];
         double force_error_derivative = force_error - prev_force_error_;
         // update prev vars
         prev_force_error_ = force_error;
@@ -151,7 +127,14 @@ namespace franka_control
         std::array<double, 7> tau_d_array{};
         Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-        return tau_d_array;
+        franka::Torques output(tau_d_array);
+        if (is_finished)
+        {
+            output.motion_finished = true;
+            time_ = 0.0;
+        }
+
+        return output;
     }
 
     franka::Torques MotionController::dynamic_impedance_control(const franka::RobotState &robot_state, franka::Duration period)
@@ -160,15 +143,10 @@ namespace franka_control
 
         if (time_ == 0.0)
         {
+            initial_state_ = robot_state;
             initial_transform_ = Eigen::Matrix4d::Map(robot_state.O_T_EE_c.data());
             position_d_ = initial_transform_.translation();
             orientation_d_ = initial_transform_.linear();
-
-            // Bias torque sensor
-            std::array<double, 7> gravity_array = model_ptr_->gravity(robot_state);
-            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_tau_measured(initial_state_.tau_J.data());
-            Eigen::Map<Eigen::Matrix<double, 7, 1>> initial_gravity(gravity_array.data());
-            initial_tau_ext_ = initial_tau_measured - initial_gravity;
         }
 
         // get state variables
@@ -206,15 +184,14 @@ namespace franka_control
 
         franka::Torques output(tau_d_array);
 
-        std::array<double, 6> wrench_ext(robot_state.O_F_ext_hat_K);
-        if (std::abs(wrench_ext[2]) >= 8.0)
+        if (std::abs(robot_state.O_F_ext_hat_K[2]) >= 6.0)
         {
             output.motion_finished = true;
             time_ = 0.0;
         }
         else
         {
-            position_d_[2] -= 5e-5;
+            position_d_[2] -= 6e-5;
         }
 
         return output;
