@@ -25,7 +25,7 @@ git clone --recursive https://github.com/wngfra/fingerSense.git ~/ros2_ws/src/fi
 ```
 2. Create a development container using
 ```bash
-docker run -it --tty --user ubuntu --name fingerSense -v $(realpath ~)/ros2_ws:/ubuntu/ros2_ws wngfra/ros2cuda:base
+docker run -it --tty --user ubuntu --name fingerSense -v --net=host $(realpath ~)/ros2_ws:/ubuntu/ros2_ws wngfra/ros2cuda:base
 ```
 3. Create a deployment container with GUI support
 ```bash
