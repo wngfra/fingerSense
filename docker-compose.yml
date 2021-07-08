@@ -6,10 +6,6 @@ services:
     volumes:
       - ../fingerSense:/workspace/fingerSense
     container_name: pytorch-notebook-container
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - driver: nvidia
-            count: all
-            capabilities: [gpu, utility]
+    runtime: nvidia    
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
