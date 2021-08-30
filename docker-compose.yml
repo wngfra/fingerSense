@@ -1,6 +1,6 @@
 services:
   franka_dev:
-    image: wngfra/ros2cuda:base
+    image: wngfra/ros2cuda:pytorch-notebook
     ports:
         - 8888:8888
     volumes:
