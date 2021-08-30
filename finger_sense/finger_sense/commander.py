@@ -17,7 +17,7 @@ from tactile_interfaces.srv import ChangeState
 
 
 # train params
-MATERIAL = "Linen"
+MATERIAL = "GreenCotton"
 DISTANCE = 0.15
 PARAMS = []
 for i in range(2):
