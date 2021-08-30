@@ -22,8 +22,8 @@ DISTANCE = 0.15
 PARAMS = []
 for i in range(2):
     for j in range(2):
-        PARAMS.append((i*1.0+5.0, -j*0.01-0.01, -DISTANCE))
-        PARAMS.append((i*1.0+5.0,  j*0.01+0.01,  DISTANCE))
+        PARAMS.append((i*1.0+7.0, -j*0.01-0.01, -DISTANCE))
+        PARAMS.append((i*1.0+7.0,  j*0.01+0.01,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
 
 
