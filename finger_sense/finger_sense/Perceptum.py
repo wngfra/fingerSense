@@ -156,15 +156,5 @@ class Perceptum:
 
     def update(self, x):
         gradients, weights, delta_latent = self.perceive(x)
-                new_control = np.sum(
-                    weights
-                    * np.matmul(
-                        gradients,
-                        np.outer(
-                            delta_latent,
-                            1
-                            / (self.current_control_params - self.prev_control_params),
-                        ),
-                    ),
-                    axis=0,
-                )
+        new_control = np.sum(weights * np.matmul(gradients, np.outer(delta_latent, 1 / (
+            self.current_control_params - self.prev_control_params))), axis=0,)

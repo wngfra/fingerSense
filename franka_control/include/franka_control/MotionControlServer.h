@@ -25,7 +25,7 @@ namespace franka_control
     class MotionControlServer : public rclcpp::Node
     {
     public:
-        MotionControlServer(char* robot_ip);
+        MotionControlServer(char *robot_ip);
 
     private:
         void timer_callback();
@@ -40,7 +40,7 @@ namespace franka_control
         std::array<double, 3> speed;
         double force;
 
-        const std::array<double, 7> q_goal = {{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
+        const std::array<double, 7> q_goal = {{0.140346, 0.767432, -0.067858, -1.56258, -0.00277842, 2.34566, 0.908156}}; //{{M_PI / 12.0, 0.0, 0.0, -M_PI_2, 0.0, M_PI_2, M_PI / 4 + M_PI / 12.0}};
 
         std::shared_ptr<RobotStateMsg> rsm_;
         std::unique_ptr<franka::Robot> robot_;

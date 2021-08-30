@@ -87,7 +87,7 @@ namespace franka_control
         // compute error to desired equilibrium pose
         if (time_ < time_max_[1])
         {
-            position_d_[0] = initial_transform_.translation()[0] + 0.01 * std::sin(4 * D_PI / time_max_[1] * time_);
+            position_d_[0] = initial_transform_.translation()[0]; // + 0.01 * std::sin(4 * D_PI / time_max_[1] * time_);
             position_d_[1] += dx_max_[1] * period.toSec();
         }
         else

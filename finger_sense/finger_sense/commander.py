@@ -17,14 +17,13 @@ from tactile_interfaces.srv import ChangeState
 
 
 # train params
-MATERIAL = "BeigeCotton"
-DISTANCE = 0.05
+MATERIAL = "Linen"
+DISTANCE = 0.15
 PARAMS = []
-for i in range(3):
-    for j in range(3):
-        for _ in range(1):
-            PARAMS.append((i*1.0+5.0, -j*0.001-0.001, -DISTANCE))
-            PARAMS.append((i*1.0+5.0,  j*0.001+0.001,  DISTANCE))
+for i in range(2):
+    for j in range(2):
+        PARAMS.append((i*1.0+5.0, -j*0.01-0.01, -DISTANCE))
+        PARAMS.append((i*1.0+5.0,  j*0.01+0.01,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
 
 

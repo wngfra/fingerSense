@@ -1,6 +1,6 @@
 services:
-  jupyter-notebook:
-    image: wngfra/ros2cuda:pytorch-notebook
+  franka_dev:
+    image: wngfra/ros2cuda:base
     ports:
         - 8888:8888
     volumes:
