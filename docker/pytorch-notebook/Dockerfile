@@ -23,6 +23,7 @@ RUN conda install -c conda-forge --quiet --yes \
 RUN pip3 install --no-cache-dir \
     bidict \
     matplotlib \
+    scikit-fda \
     seaborn
 
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
