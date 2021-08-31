@@ -20,10 +20,10 @@ from tactile_interfaces.srv import ChangeState
 MATERIAL = "BeigeLinen"
 DISTANCE = 0.15
 PARAMS = []
-for i in range(2):
-    for j in range(2):
-        PARAMS.append((i*1.0+7.0, -j*0.01-0.01, -DISTANCE))
-        PARAMS.append((i*1.0+7.0,  j*0.01+0.01,  DISTANCE))
+for i in range(1):
+    for j in range(5):
+        PARAMS.append((i*1.0+8.0, -j*0.005-0.01, -DISTANCE))
+        PARAMS.append((i*1.0+8.0,  j*0.005+0.01,  DISTANCE))
 PARAMS.append((-1.0, 0.0, 0.0))
 
 
