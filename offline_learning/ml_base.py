@@ -55,7 +55,7 @@ class RVAE(nn.Module):
 
     def encode(self, x):
         return self.encoder(x)
-    
+
 """ Custom collate functions"""
 
 class PadSequence(object):

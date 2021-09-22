@@ -4,26 +4,25 @@
 ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:21.05-py3
 FROM $BASE_IMAGE
 
-# Install Jupyter Notebook, Lab, and Hub
+# Install Jupyter Lab, and Hub
 # Generate a notebook server config
 # Cleanup temporary files
 # Correct permissions
 # Do all this in a single RUN command to avoid duplicating all of the
 # files across image layers when the permissions change
 RUN conda install -c conda-forge --quiet --yes \
-    notebook \
     jupyterhub \
     jupyterlab \
     jupyterthemes && \
     conda clean --all -f -y && \
     npm cache clean --force && \
-    jupyter notebook --generate-config && \
     jupyter lab clean
 
 RUN pip3 install --no-cache-dir \
     bidict \
     matplotlib \
     scikit-fda \
+    scipy \
     seaborn \
     tensorly
 
@@ -35,5 +34,5 @@ RUN chmod +x /usr/bin/tini
 EXPOSE 8888
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--allow-root"]
+CMD ["jupyter-lab", "--port=8888", "--no-browser", "--allow-root"]
 

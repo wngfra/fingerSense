@@ -60,9 +60,8 @@ class TacDataset(Dataset):
         return self.textures.get_name(texture_id)
 
 
+# +
 """ Custom transforms """
-from skfda import FDataGrid
-from skfda.representation import basis
 
 class Normalize(object):
     def __init__(self, axis=0):
@@ -71,14 +70,18 @@ class Normalize(object):
     def __call__(self, sample):
         return (sample - np.mean(sample, axis=self.axis, keepdims=True)) / np.std(sample, axis=self.axis, keepdims=True)
 
+# +
+from skfda import FDataGrid
+from skfda.representation import basis
+
 class ToFDA(object):
     def __init__(self, flatten=True):
-        self.basis = basis.Fourier(n_basis=129)
+        self.basis = basis.Fourier((0, np.pi), nbasis=33, period=1)
         self.flatten = flatten
     
     def __call__(self, x):
-        ''' Compute covariance matrix with functional basis decomposition.'''
-        fd = FDataGrid(x.T).to_basis(self.basis)
+        ''' Basis expansion'''
+        fd = FDataGrid(x).to_basis(self.basis)
         coeffs = fd.coefficients.squeeze()
         coeffs = coeffs[:, 1:].T
         if self.flatten:
