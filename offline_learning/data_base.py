@@ -56,11 +56,10 @@ class TacDataset(Dataset):
         labels = [self.textures.get_id(texture_name)] + self.params[index]
         return tacdata, labels
 
-    def get_texture_name(self, texture_id):
+    def get_texture(self, texture_id):
         return self.textures.get_name(texture_id)
 
 
-# +
 """ Custom transforms """
 
 class Normalize(object):
@@ -70,18 +69,18 @@ class Normalize(object):
     def __call__(self, sample):
         return (sample - np.mean(sample, axis=self.axis, keepdims=True)) / np.std(sample, axis=self.axis, keepdims=True)
 
-# +
-from skfda import FDataGrid
-from skfda.representation import basis
+    
+# from skfda import FDataGrid
+# from skfda.representation import basis
 
 class ToFDA(object):
-    def __init__(self, flatten=True):
-        self.basis = basis.Fourier((0, np.pi), nbasis=33, period=1)
+    def __init__(self, flatten=False):
+        self.basis = basis.Fourier((0, 1), n_basis=33, period=1)
         self.flatten = flatten
     
     def __call__(self, x):
         ''' Basis expansion'''
-        fd = FDataGrid(x).to_basis(self.basis)
+        fd = FDataGrid(data_matrix=x).to_basis(self.basis)
         coeffs = fd.coefficients.squeeze()
         coeffs = coeffs[:, 1:].T
         if self.flatten:
@@ -89,3 +88,24 @@ class ToFDA(object):
         
         return coeffs
 
+
+from numpy.fft import rfft
+from scipy.signal import resample
+    
+class ToDFT(object):
+    def __init__(self, Ns, flatten=False, axis=0):
+        self.Ns = Ns
+        self.axis = axis
+        self.flatten = flatten
+    
+    def __call__(self, x):
+        L = x.shape[self.axis]
+        y = rfft(x, axis=self.axis, norm="ortho")
+        sl = [slice(None)] * x.ndim
+        sl[self.axis] = slice(1, None)
+        ys = np.abs(y/L)[tuple(sl)]
+        Y = resample(ys, self.Ns, axis=self.axis)
+        if self.flatten:
+            Y = Y.flatten('F')
+        
+        return Y

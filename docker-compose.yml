@@ -5,7 +5,7 @@ services:
         - 8888:8888
     volumes:
       - ../fingerSense:/workspace/fingerSense
-    container_name: pytorch-notebook-container
+    container_name: pytorch-jupyterlab
     runtime: nvidia    
     environment:
       - NVIDIA_VISIBLE_DEVICES=all

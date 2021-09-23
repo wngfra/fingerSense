@@ -11,6 +11,7 @@ FROM $BASE_IMAGE
 # Do all this in a single RUN command to avoid duplicating all of the
 # files across image layers when the permissions change
 RUN conda install -c conda-forge --quiet --yes \
+    nodejs \
     jupyterhub \
     jupyterlab \
     jupyterthemes && \
@@ -18,13 +19,19 @@ RUN conda install -c conda-forge --quiet --yes \
     npm cache clean --force && \
     jupyter lab clean
 
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --upgrade --no-cache-dir \
     bidict \
+    ipympl \
     matplotlib \
+    numpy \
     scikit-fda \
     scipy \
     seaborn \
     tensorly
+
+RUN jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
+    jupyter labextension install jupyter-matplotlib && \
+    jupyter nbextension enable --py widgetsnbextension
 
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
 ENV TINI_VERSION v0.19.0
