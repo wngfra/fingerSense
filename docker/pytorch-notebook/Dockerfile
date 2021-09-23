@@ -29,10 +29,6 @@ RUN pip3 install --upgrade --no-cache-dir \
     seaborn \
     tensorly
 
-RUN jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
-    jupyter labextension install jupyter-matplotlib && \
-    jupyter nbextension enable --py widgetsnbextension
-
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
 ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
