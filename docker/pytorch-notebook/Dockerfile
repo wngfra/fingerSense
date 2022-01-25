@@ -1,7 +1,7 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
 
-ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:21.05-py3
+ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:21.12-py3
 FROM $BASE_IMAGE
 
 # Install Jupyter Lab, and Hub
@@ -19,14 +19,17 @@ RUN conda install -c conda-forge --quiet --yes \
     npm cache clean --force && \
     jupyter lab clean
 
+RUN conda install --quiet --yes \
+    matplotlib \
+    numpy \
+    scipy \
+    seaborn && \
+    conda clearn --all -f -y
+
 RUN pip3 install --upgrade --no-cache-dir \
     bidict \
     ipympl \
-    matplotlib \
-    numpy \
     scikit-fda \
-    scipy \
-    seaborn \
     tensorly
 
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.

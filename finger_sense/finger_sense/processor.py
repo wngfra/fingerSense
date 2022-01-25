@@ -12,7 +12,7 @@ from tensorly.tenalg import mode_dot
 from finger_sense.utility import KL_divergence_normal, normalize
 
 
-class Perceptum:
+class Processor:
 
     def __init__(self, dirs, latent_dim, n_basis, model_name='Gaussian'):
         self.latent_dim = latent_dim
