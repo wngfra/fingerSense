@@ -1,11 +1,16 @@
 # Copyright (c) 2020 wngfra
 # Use of this source code is governed by the Apache-2.0 license, see LICENSE
-from typing import final
 import numpy as np
 import os
 import rclpy
 import time
 from collections import deque
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import animation
+from matplotlib import pyplot as plt
+from sklearn.decomposition import IncrementalPCA
+
+
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -14,6 +19,8 @@ from franka_interfaces.msg import RobotState
 from franka_interfaces.srv import SlidingControl
 from tactile_interfaces.msg import TactileSignal
 from tactile_interfaces.srv import ChangeState
+
+from finger_sense.utility import resample_fft
 
 
 # train params
@@ -64,10 +71,34 @@ class Commander(Node):
         if self.mode == "train":
             self.count = 0
             self.initialized = False
-        self.buffer = deque(maxlen=None)
+            maxlen = None
+        if self.mode == "test":
+            self.freq_buf = []
+            self.freqXd= []
+            self.transformer = IncrementalPCA(n_components=3, batch_size=32)
+            maxlen = 128
+        
+        self.buffer_count = 0
+        self.buffer = deque(maxlen=maxlen)
 
         self.send_sliding_control_request(
             0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+
+        """ Prepare 3D visualization """
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+
+        def update(num, data, line):
+            line.set_data(data[:2, :num])
+            line.set_3d_properties(data[2, :num])
+
+        self.sct, = ax.plot([], [], [], "o", markersize=2)
+
+        ani = animation.FuncAnimation(fig, update, 24, fargs=(xs,ys,zs), interval=1)
+    
+    def update(self, xa, ya, za):
+        self.sct.set_data(self.freqXd[:, 0], self.freqXd[:, 1])
+        self.sct.set_3d_properties(self.freqXd[:, 2])
 
     def get_params(self):
         self.save_dir = str(self.get_parameter("save_dir").value)
@@ -78,6 +109,7 @@ class Commander(Node):
 
     def tactile_callback(self, msg):
         self.buffer.append(msg.data)
+        self.buffer_count += 1
 
     def timer_callback(self):
         success = False
@@ -93,6 +125,7 @@ class Commander(Node):
         nanoseconds = self.get_clock().now().nanoseconds
 
         if success:
+            """ Training mode for data collection. """
             if self.mode == "train" and self.count < len(PARAMS):
                 # Save buffer
                 if control_type == 3:
@@ -111,8 +144,17 @@ class Commander(Node):
                 y = PARAMS[self.count][2]
                 self.send_sliding_control_request(
                     force, [0.0, y, 0.0], [0.0, dy, 0.0])
-
+            
                 self.count += 1
+
+            if self.mode == "test" and len(self.buffer) >= self.buffer.maxlen:
+                """ Test mode for active perception."""
+                y = resample_fft(self.buffer, Ns=32, axis=0, flatten=True)
+                self.freq_buf.append(y)
+                if len(self.freq_buf) > 32:
+                    self.freqXd = self.transformer.fit_transform(self.freq_buf)
+                    plt.pause(0.001)
+                
 
     def send_sliding_control_request(self, force, distance, speed):
         """

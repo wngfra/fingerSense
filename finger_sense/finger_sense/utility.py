@@ -3,10 +3,30 @@
 
 import numpy as np
 from numpy import linalg as LA
+from numpy.fft import rfft
+from scipy.signal import resample
 
 import jax.numpy as jnp
 import jax.numpy.linalg as jLA
 from jax import jit
+
+
+def normalized(x, axis):
+    return (x - np.mean(x, axis=axis, keepdims=True)) / np.std(x, axis=axis, keepdims=True)
+
+
+def resample_fft(x, Ns=32, axis=0, flatten=False):
+    x = normalized(x, axis=axis)
+    L = x.shape[axis]
+    y = rfft(x, axis=axis, norm="ortho")
+    sl = [slice(None)] * x.ndim
+    sl[axis] = slice(1, None)
+    ys = np.abs(y / L)[tuple(sl)]
+    Y = resample(ys, Ns, axis=axis)
+    if flatten:
+        Y = Y.flatten('F')
+
+    return Y
 
 
 def error_ellipsoid(A, scaling_factor=1.0):
@@ -70,12 +90,11 @@ def KL_divergence_normal(y, p, q, y0, n):
     y = jnp.array(y)
     y0 = jnp.array(y0)
 
-    mu_p_new = mu_p + (y - y0)/n
-    sigma_p_new = (n-1)/n*sigma_p + jnp.outer(y - mu_p_new, y - mu_p)/n
+    mu_p_new = mu_p + (y - y0) / n
+    sigma_p_new = (n - 1) / n * sigma_p + jnp.outer(y - mu_p_new, y - mu_p) / n
     k = y.shape[0]
 
-    return 0.5 * (jnp.log(jLA.det(sigma_q)/jLA.det(sigma_p_new)) - k + jnp.dot(jnp.dot((mu_p_new - mu_q).T, jLA.inv(sigma_q)), (mu_p_new - mu_q)) + jnp.trace(jnp.dot(jLA.inv(sigma_q), sigma_p_new)) )
-
-
-def normalize(x, axis):
-    return (x - np.mean(x, axis=axis, keepdims=True)) / np.std(x, axis=axis, keepdims=True)
+    return 0.5 * (jnp.log(jLA.det(sigma_q) / jLA.det(sigma_p_new)) - k +
+                  jnp.dot(jnp.dot((mu_p_new - mu_q).T, jLA.inv(sigma_q)),
+                          (mu_p_new - mu_q)) +
+                  jnp.trace(jnp.dot(jLA.inv(sigma_q), sigma_p_new)))
