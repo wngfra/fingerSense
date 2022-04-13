@@ -8,9 +8,8 @@
 3. [can2wifi2ros](https://github.com/wngfra/can2wifi2ros) contains the ROS2 package for a DIY `CAN2WIFI` module
 4. Using a [CPM-Finger](https://www.cyskin.com/cpm-finger-the-finger-for-textile-manipulation/) tactile sensor
 
-## Docker support
-1. Pre-built [wngfra/ros2cuda:base](https://hub.docker.com/r/wngfra/ros2cuda) images for development and deployment are available 
-2. Provided `docker-compose.yml` to set up a jupyter-notebook container for tactile signal analysis 
+## Docker suppor
+1. Pre-built [wngfra/ros2cuda]((https://hub.docker.com/r/wngfra/ros2cuda) images for robot control and perception
 
 ## Robot Control
 1. Non-realtime config will be applied to `robot` when `PREEMPT_RT` not detected
@@ -33,5 +32,5 @@ docker run -it --tty --device /dev/dri --gpus all --user ubuntu --name fingerSen
 ```
 4. Build the packages and source the setup script
 ```bash
-colcon buil --symlink-install && . install/setup.bash
+colcon build --symlink-install && . install/setup.bash
 ```
